@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>See your visitors</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<!--
+  The visitor read. Same shell as the persona dashboard and the Google Ads audit dashboard.
+  code/build_visitors_dashboard.py copies this file and replaces ONLY the JSON inside <script id="visitors-data">.
+  Never edit markup, CSS or script per run - the renderer draws everything from the JSON. If a rule changes,
+  change the builder and rebuild. The JSON shipped here is a worked example (fictional) so the file opens on its own.
+-->
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  :root { --canvas:#f5f4ed; --ivory:#faf9f5; --sand:#e8e6dc; --ink:#141413; --body:#5e5d59; --muted:#87867f; --hairline:#f0eee6; --hairline-soft:#e8e6dc; --ring:#d1cfc5;
+    --terracotta:#c96442; --terracotta-active:#b05538; --coral:#d97757;
+    --good:#3d7a4a; --good-bg:rgba(61,122,74,.08); --good-ring:rgba(61,122,74,.25);
+    --warn:#d4a017; --warn-bg:rgba(212,160,23,.10); --warn-ring:rgba(212,160,23,.30);
+    --bad:#b53333; --bad-bg:rgba(181,51,51,.07); --bad-ring:rgba(181,51,51,.22);
+    --dark:#141413; --on-dark:#faf9f5; --on-dark-soft:#b0aea5; }
+  html { scroll-behavior:smooth; }
+  body { background:var(--canvas); color:var(--ink); font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .display { font-family:"Tiempos Text",Georgia,serif; font-weight:500; }
+  .mono, .kicker, .k, .st, .tag { font-family:"JetBrains Mono",ui-monospace,Menlo,monospace; }
+  .kicker { font-size:11px; text-transform:uppercase; letter-spacing:2px; color:var(--coral); }
+  .k { font-size:11px; color:#6e6d66; }
+  .rail { max-width:1160px; margin:0 auto; padding:0 32px; }
+  .nav { border-bottom:1px solid var(--hairline); background:var(--canvas); position:sticky; top:0; z-index:5; }
+  .nav .rail { display:flex; align-items:center; justify-content:space-between; padding-top:14px; padding-bottom:14px; gap:16px; }
+  .wordmark { display:inline-flex; align-items:center; gap:8px; font-size:22px; letter-spacing:-.3px; }
+  .wordmark svg { color:var(--terracotta); }
+  .jump { display:flex; gap:4px; flex-wrap:wrap; }
+  .jump a { font-size:12px; font-weight:500; color:var(--body); text-decoration:none; padding:6px 10px; border-radius:8px; }
+  .jump a:hover { background:var(--sand); color:var(--ink); }
+  header.hero { padding:48px 0 8px; }
+  header.hero h1 { font-size:52px; line-height:1.05; letter-spacing:-1px; margin-top:14px; }
+  header.hero .meta { display:flex; flex-wrap:wrap; gap:8px 20px; align-items:center; margin-top:14px; }
+  header.hero .meta .stamp { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color:#6e6d66; }
+  header.hero p.frame { color:var(--body); font-size:15px; max-width:760px; margin-top:16px; line-height:1.55; }
+  header.hero p.frame b { font-weight:600; color:var(--ink); }
+  section { padding:36px 0; scroll-margin-top:70px; }
+  section.band { background:#fff; border-top:1px solid var(--hairline-soft); border-bottom:1px solid var(--hairline-soft); }
+  .sh { margin-bottom:18px; }
+  .sh h2 { font-size:26px; line-height:1.2; letter-spacing:-.5px; }
+  .sh p.lead { color:var(--body); font-size:14px; max-width:720px; margin-top:6px; line-height:1.5; }
+  .card { background:var(--ivory); border:1px solid var(--hairline); border-radius:16px; box-shadow:rgba(0,0,0,.04) 0 4px 24px; }
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); }
+  .stat { padding:20px 26px; border-right:1px solid var(--hairline); }
+  .stat:last-child { border-right:0; }
+  .stat .v { font-family:"Tiempos Text",Georgia,serif; font-weight:500; font-size:40px; letter-spacing:-1.5px; line-height:1.05; }
+  .stat .v small { font-size:20px; letter-spacing:-.5px; }
+  .stat .k { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1.5px; color:var(--ink); margin-top:6px; }
+  .stat .sub { font-size:11.5px; color:var(--body); margin-top:6px; line-height:1.45; }
+  .st { display:inline-block; font-size:10px; text-transform:uppercase; letter-spacing:1px; padding:2px 8px; border-radius:99px; white-space:nowrap; }
+  .st.bad { background:var(--bad-bg); color:var(--bad); box-shadow:inset 0 0 0 1px var(--bad-ring); }
+  .st.warn { background:var(--warn-bg); color:#8a6a0c; box-shadow:inset 0 0 0 1px var(--warn-ring); }
+  .st.good { background:var(--good-bg); color:var(--good); box-shadow:inset 0 0 0 1px var(--good-ring); }
+  .st.muted { background:var(--sand); color:var(--body); }
+  .row { display:grid; grid-template-columns:1fr auto; gap:16px; align-items:start; padding:16px 22px; border-bottom:1px solid var(--hairline); }
+  .row:last-child { border-bottom:0; }
+  .row .nm { font-size:15px; font-weight:600; }
+  .row .dt { font-size:12.5px; color:var(--body); margin-top:5px; line-height:1.5; }
+  .row .ev { font-size:11px; color:var(--muted); margin-top:6px; font-family:"JetBrains Mono",ui-monospace,monospace; }
+  .row a.jumpto { font-size:12px; color:var(--terracotta); text-decoration:none; }
+  .row a.jumpto:hover { text-decoration:underline; }
+  .empty { padding:22px 24px; color:var(--body); font-size:14px; line-height:1.6; }
+  /* heat map */
+  .hmwrap { padding:18px 22px 24px; }
+  .hmbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .tgl { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:1.2px; padding:6px 12px; border-radius:99px; border:1px solid var(--hairline-soft); background:var(--ivory); color:var(--body); cursor:pointer; }
+  .tgl[aria-pressed="true"] { background:var(--ink); color:var(--ivory); border-color:var(--ink); }
+  .hmstage { position:relative; display:block; margin:0 auto; max-width:100%; border-radius:12px; overflow:hidden; border:1px solid var(--hairline); background:#fff; }
+  .hmstage.phone { max-width:430px; }
+  .hmstage img { display:block; width:100%; height:auto; }
+  .hmstage canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  .hmgrid { display:grid; grid-template-columns:1fr 280px; gap:22px; align-items:start; }
+  .hmgrid:has(> div > .hmstage.hide) { grid-template-columns:1fr; }
+  .bands { display:flex; flex-direction:column; gap:8px; }
+  .band-row { display:grid; grid-template-columns:1fr; gap:4px; padding:10px 12px; border:1px solid var(--hairline); border-radius:10px; background:var(--ivory); }
+  .band-row .nm { font-size:13px; font-weight:600; }
+  .band-row .bar { height:8px; border-radius:4px; background:var(--sand); overflow:hidden; }
+  .band-row .bar i { display:block; height:100%; background:var(--terracotta); }
+  .band-row .sub { font-size:11.5px; color:var(--body); }
+  /* ladder */
+  .ladder { padding:18px 22px 24px; display:flex; flex-direction:column; gap:10px; }
+  .rung { display:grid; grid-template-columns:150px 1fr 120px; gap:14px; align-items:center; font-size:13.5px; }
+  .rung .bar { height:22px; border-radius:6px; background:var(--sand); overflow:hidden; }
+  .rung .bar i { display:block; height:100%; background:var(--terracotta); }
+  .rung.dropped .bar i { background:var(--bad); }
+  .rung .n { text-align:right; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; color:var(--body); }
+  /* sessions */
+  .sgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:18px; }
+  .scard { overflow:hidden; }
+  .scard .top { padding:16px 20px 12px; border-bottom:1px solid var(--hairline); display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+  .scard .top h4 { font-size:15px; font-weight:600; }
+  .scard .top .k { margin-top:4px; }
+  .scard .mom { padding:12px 20px; display:flex; flex-direction:column; gap:7px; }
+  .mo { display:grid; grid-template-columns:44px 1fr; gap:10px; font-size:13px; line-height:1.45; }
+  .mo .t { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11.5px; color:var(--muted); padding-top:2px; }
+  .mo b { font-weight:600; }
+  .scard .foot { padding:12px 20px 16px; border-top:1px solid var(--hairline); font-size:12.5px; color:var(--body); line-height:1.6; }
+  .scard .foot a { color:var(--terracotta); text-decoration:none; } .scard .foot a:hover { text-decoration:underline; }
+  .scard .fix { background:var(--sand); padding:12px 20px; font-size:13px; line-height:1.5; }
+  .scard .fix b { font-weight:600; }
+  .strat { display:flex; align-items:baseline; gap:10px; margin:26px 0 12px; flex-wrap:wrap; }
+  .strat p { flex:1 1 260px; }
+  .strat h3 { font-size:18px; letter-spacing:-.3px; }
+  .strat p { font-size:13px; color:var(--body); }
+  /* not enough yet */
+  .grey { background:var(--sand); border:1px solid var(--ring); border-radius:12px; padding:14px 18px; font-size:13.5px; color:var(--body); line-height:1.55; }
+  .greys { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:12px; }
+  .tworow { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  ul.plain { list-style:none; padding:16px 22px; display:flex; flex-direction:column; gap:9px; font-size:13.5px; line-height:1.5; }
+  ul.plain li b { font-weight:600; }
+  footer { background:var(--dark); color:var(--on-dark-soft); padding:40px 0; font-size:13px; margin-top:24px; }
+  footer .rail { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
+  footer .wordmark { color:var(--on-dark); font-size:18px; }
+  .hide { display:none !important; }
+  @media (max-width:960px) {
+    header.hero h1 { font-size:36px } .jump { display:none }
+    .stats { grid-template-columns:1fr 1fr } .hmgrid { grid-template-columns:1fr } .tworow { grid-template-columns:1fr }
+    .rung { grid-template-columns:110px 1fr } .rung .n { grid-column:1 / -1; text-align:left }
+  }
+</style>
+</head>
+<body>
+<script id="visitors-data" type="application/json">{
+ "business": "Dave's Plumbing (a worked example, not a real business)",
+ "page": "/lp/drain-cleaning",
+ "date": "25 September 2026",
+ "days": 30,
+ "next": "Fix the price box: nine people tapped it and nothing opened.",
+ "sessions": 412,
+ "leads": 27,
+ "rate": 6.6,
+ "form_rate": 4.1,
+ "pageviews": 486,
+ "mobile_share": 78,
+ "counts": {
+  "forms": 17,
+  "forms_server": 18,
+  "calls": 9,
+  "texts": 1,
+  "bookings": 4,
+  "thank_you": 19,
+  "failed": 2
+ },
+ "fix_now": [
+  {
+   "what": "The price box does nothing when tapped",
+   "where": "Price",
+   "detail": "Nine people tapped the price line on a phone. It is not a link and nothing opens.",
+   "evidence": "9 of 412 sessions · dead clicks in the log",
+   "sessions": [
+    "a1f3c9d2"
+   ]
+  },
+  {
+   "what": "The form failed to send twice",
+   "where": "Form",
+   "detail": "Two people filled the form and the webhook refused it. Both were leads.",
+   "evidence": "2 lead_form_failed events",
+   "sessions": []
+  }
+ ],
+ "test_later": [
+  {
+   "what": "The offer sits below the reviews",
+   "where": "Hero",
+   "detail": "The quiet exits scrolled past the hero without stopping. The converted session read it first.",
+   "evidence": "1 of 1 quiet exit · 0 of 1 converted",
+   "sessions": []
+  }
+ ],
+ "heatmap": {
+  "available": false,
+  "note": "No heat map points in the example - this is what the section looks like before a live page has traffic.",
+  "views": []
+ },
+ "sections": [
+  {
+   "name": "Hero",
+   "top": 0,
+   "bottom": 0,
+   "reached": 412,
+   "paused": 2,
+   "stopped": 0,
+   "broken": 0
+  },
+  {
+   "name": "Reviews",
+   "top": 0,
+   "bottom": 0,
+   "reached": 338,
+   "paused": 0,
+   "stopped": 1,
+   "broken": 0
+  },
+  {
+   "name": "Price",
+   "top": 0,
+   "bottom": 0,
+   "reached": 190,
+   "paused": 1,
+   "stopped": 0,
+   "broken": 1
+  },
+  {
+   "name": "How it works",
+   "top": 0,
+   "bottom": 0,
+   "reached": 96,
+   "paused": 0,
+   "stopped": 0,
+   "broken": 0
+  },
+  {
+   "name": "Form",
+   "top": 0,
+   "bottom": 0,
+   "reached": 41,
+   "paused": 0,
+   "stopped": 0,
+   "broken": 0
+  },
+  {
+   "name": "FAQ",
+   "top": 0,
+   "bottom": 0,
+   "reached": 22,
+   "paused": 0,
+   "stopped": 1,
+   "broken": 1
+  }
+ ],
+ "form": {
+  "starters": 63,
+  "enough": false,
+  "sent": 17,
+  "fields": [
+   {
+    "field": "name",
+    "touched": 63,
+    "filled": 61
+   },
+   {
+    "field": "phone",
+    "touched": 58,
+    "filled": 44
+   },
+   {
+    "field": "address",
+    "touched": 41,
+    "filled": 19
+   },
+   {
+    "field": "job",
+    "touched": 24,
+    "filled": 22
+   }
+  ],
+  "last_field": [
+   {
+    "field": "address",
+    "n": 22
+   }
+  ]
+ },
+ "strata": [
+  {
+   "key": "A frustration",
+   "what": "The most rage clicks, dead clicks, errors or a form that failed to send."
+  },
+  {
+   "key": "B quiet exit",
+   "what": "Reached the form or scrolled past 60%, no errors, left anyway. These decide the offer."
+  },
+  {
+   "key": "C converted",
+   "what": "The control. What a good session looks like."
+  }
+ ],
+ "sessions_read": [
+  {
+   "sid": "a1f3c9d2",
+   "stratum": "A frustration",
+   "device": "Mobile",
+   "secs": 84,
+   "scroll": 72,
+   "verdict": "friction",
+   "confidence": "medium",
+   "moments": [
+    {
+     "t": "00:04",
+     "secs": 4,
+     "section": "Hero",
+     "saw": "paused on the headline",
+     "pause_s": 6.0
+    },
+    {
+     "t": "00:19",
+     "secs": 19,
+     "section": "Price",
+     "saw": "paused on the price box",
+     "pause_s": 11.0
+    },
+    {
+     "t": "00:24",
+     "secs": 24,
+     "section": "Price",
+     "saw": "tapped the price three times, nothing changed",
+     "pause_s": 0.0
+    },
+    {
+     "t": "00:31",
+     "secs": 31,
+     "section": "Hero",
+     "saw": "scrolled back up to the headline",
+     "pause_s": 0.0
+    },
+    {
+     "t": "00:52",
+     "secs": 52,
+     "section": "Reviews",
+     "saw": "scrolled down to the reviews and left",
+     "pause_s": 0.0
+    }
+   ],
+   "broken": [
+    {
+     "t": "00:24",
+     "section": "Price",
+     "what": "three taps on the price, nothing opened",
+     "kind": "tap_did_nothing",
+     "corroborated": true,
+     "video_only": false
+    }
+   ],
+   "one_fix": {
+    "section": "Price",
+    "element": "the price line",
+    "change": "make the price open the what-is-included list",
+    "because_t": "00:24"
+   },
+   "stopped_at": {
+    "section": "Reviews",
+    "t": "00:52",
+    "doing": "scrolling past the review cards"
+   },
+   "claude": "Read from the event log: the taps, the fields and where the session ended.",
+   "replay": "",
+   "video": ""
+  },
+  {
+   "sid": "e93d0a77",
+   "stratum": "C converted",
+   "device": "Desktop",
+   "secs": 100,
+   "scroll": 96,
+   "verdict": "unclear",
+   "confidence": "high",
+   "moments": [
+    {
+     "t": "00:03",
+     "secs": 3,
+     "section": "Hero",
+     "saw": "paused on the headline",
+     "pause_s": 5.0
+    },
+    {
+     "t": "00:15",
+     "secs": 15,
+     "section": "Reviews",
+     "saw": "scrolled through the reviews",
+     "pause_s": 0.0
+    },
+    {
+     "t": "00:40",
+     "secs": 40,
+     "section": "Form",
+     "saw": "typed in the name field",
+     "pause_s": 0.0
+    },
+    {
+     "t": "00:55",
+     "secs": 55,
+     "section": "Form",
+     "saw": "tapped Send",
+     "pause_s": 0.0
+    },
+    {
+     "t": "01:10",
+     "secs": 70,
+     "section": "FAQ",
+     "saw": "tapped a question, nothing opened",
+     "pause_s": 0.0
+    },
+    {
+     "t": "01:40",
+     "secs": 100,
+     "section": "FAQ",
+     "saw": "left",
+     "pause_s": 0.0
+    }
+   ],
+   "broken": [
+    {
+     "t": "01:10",
+     "section": "FAQ",
+     "what": "tapped a question and it did not open",
+     "kind": "tap_did_nothing",
+     "corroborated": false,
+     "video_only": true
+    }
+   ],
+   "one_fix": {
+    "section": "FAQ",
+    "element": "the questions",
+    "change": "make each question open on tap",
+    "because_t": "01:10"
+   },
+   "stopped_at": {
+    "section": "FAQ",
+    "t": "01:40",
+    "doing": "reading the questions"
+   },
+   "claude": "Read from the event log: the taps, the fields and where the session ended.",
+   "replay": "",
+   "video": ""
+  }
+ ],
+ "not_read": [
+  {
+   "sid": "b7e21a40",
+   "why": "read discarded: 0 moments survived (needs 4)"
+  }
+ ],
+ "trust": {
+  "posthog": 18,
+  "crm": null,
+  "ads": null,
+  "note": "Quote the server count. The browser count loses about a tenth to ad blockers."
+ },
+ "market": {
+  "vertical": "home services",
+  "you": 6.6,
+  "median": 8.05,
+  "forms_only": 6.6,
+  "note": "LocaliQ 2026, US search medians. They never define a conversion, so compare only once tracked calls exist."
+ },
+ "not_enough": [
+  {
+   "what": "The heat map",
+   "why": "486 pageviews. A picture means something at about 2,000, and under 500 it is noise."
+  },
+  {
+   "what": "The form percentages",
+   "why": "63 people started the form. A percentage needs 100 starters, so the ladder shows counts."
+  }
+ ]
+}</script>
+
+<nav class="nav"><div class="rail">
+  <span class="wordmark display" id="wordmark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span id="wm-name">See your visitors</span></span>
+  <span class="jump">
+    <a href="#first">Do this first</a><a href="#heat">Heat map</a><a href="#form">The form</a>
+    <a href="#sessions">The ten</a><a href="#trust">The count</a><a href="#early">Not enough yet</a>
+  </span>
+</div></nav>
+
+<header class="hero"><div class="rail">
+  <span class="kicker">The visitor read</span>
+  <h1 class="display" id="h-title">See your visitors</h1>
+  <div class="meta"><span class="stamp" id="h-meta"></span></div>
+  <p class="frame" id="h-next"></p>
+</div></header>
+
+<section><div class="rail"><div class="card"><div class="stats" id="stats"></div></div></div></section>
+
+<section id="first" class="band"><div class="rail">
+  <div class="sh"><h2 class="display">Do this first</h2><p class="lead">A bug or friction ships today. Anything about words, price or order waits for a split test, because nobody can tell which way it goes by looking.</p></div>
+  <div class="card" id="fixnow"></div>
+  <div class="sh" style="margin-top:28px"><h2 class="display">Test later</h2><p class="lead">These go to <span class="mono">/split-test</span>, one at a time, worst first.</p></div>
+  <div class="card" id="testlater"></div>
+</div></section>
+
+<section id="heat"><div class="rail">
+  <div class="sh"><h2 class="display">Where they click and how far they get</h2><p class="lead" id="heat-note"></p></div>
+  <div class="card hmwrap">
+    <div class="hmbar" id="hmbar"></div>
+    <div class="grey hide" id="hmnote" style="margin-bottom:16px"></div>
+    <div class="hmgrid">
+      <div><div class="hmstage" id="hmstage"><img id="hmimg" alt="The page, full length" /><canvas id="hmcanvas"></canvas></div></div>
+      <div><div class="k" style="margin-bottom:8px">How far down they got, by section</div><div class="bands" id="bands"></div></div>
+    </div>
+  </div>
+</div></section>
+
+<section id="form" class="band"><div class="rail">
+  <div class="sh"><h2 class="display">The form, rung by rung</h2><p class="lead" id="form-note"></p></div>
+  <div class="card ladder" id="ladder"></div>
+</div></section>
+
+<section id="sessions"><div class="rail">
+  <div class="sh"><h2 class="display">The ten sessions, read one by one</h2><p class="lead">Picked across three groups, never "the five worst". Every line carries the time on the session clock it was read from.</p></div>
+  <div id="strata"></div>
+</div></section>
+
+<section id="trust" class="band"><div class="rail">
+  <div class="tworow">
+    <div><div class="sh"><h2 class="display">The count you can trust</h2></div><div class="card"><ul class="plain" id="trustlist"></ul></div></div>
+    <div><div class="sh"><h2 class="display">Against the market</h2></div><div class="card"><ul class="plain" id="marketlist"></ul></div></div>
+  </div>
+</div></section>
+
+<section id="early"><div class="rail">
+  <div class="sh"><h2 class="display">Not enough yet</h2><p class="lead">Nothing here is hidden. These are the numbers that exist but cannot be read honestly at this traffic.</p></div>
+  <div class="greys" id="greys"></div>
+</div></section>
+
+<footer><div class="rail">
+  <span class="wordmark display"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span id="wm-foot">See your visitors</span></span>
+  <span class="k" id="foot-meta"></span>
+</div></footer>
+
+<script>
+(() => {
+  const D = JSON.parse(document.getElementById('visitors-data').textContent);
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const n = v => (v == null ? '-' : Number(v).toLocaleString());
+
+  // header
+  document.title = `${D.business || 'See your visitors'} · ${D.page || ''}`.trim();
+  $('wm-name').textContent = D.business || 'See your visitors';
+  $('wm-foot').textContent = D.business || 'See your visitors';
+  $('h-title').textContent = D.page || 'See your visitors';
+  $('h-meta').textContent = [`${n(D.sessions)} sessions`, `last ${D.days} days`, `${n(D.leads)} leads`, D.date].filter(Boolean).join('  ·  ');
+  $('h-next').innerHTML = D.next ? `<b>Next:</b> ${esc(D.next)}` : '';
+  $('foot-meta').textContent = `Built by /analytics · ${D.date || ''}`;
+
+  // stats
+  const c = D.counts || {};
+  $('stats').innerHTML = [
+    {v: n(D.sessions), k: 'Sessions', sub: `${D.mobile_share == null ? '-' : D.mobile_share + '% on a phone'}`},
+    {v: n(D.leads), k: 'Leads', sub: `${n(c.forms)} forms · ${n(c.calls)} phone taps · ${n(c.texts)} texts`},
+    {v: (D.rate == null ? '-' : D.rate + '<small>%</small>'), k: 'Lead rate', sub: `form only ${D.form_rate == null ? '-' : D.form_rate + '%'}`},
+    {v: n(c.failed), k: 'Failed to send', sub: c.failed ? 'Every one of these was a lead' : 'None. The form sent every time'},
+  ].map(s => `<div class="stat"><div class="v display">${s.v}</div><div class="k">${esc(s.k)}</div><div class="sub">${esc(s.sub)}</div></div>`).join('');
+
+  // the two lists
+  const list = (rows, el, kind) => {
+    if (!rows || !rows.length) {
+      $(el).innerHTML = `<div class="empty">${kind === 'fix' ? 'Nothing broken in this read. That is a real answer, not an empty section.' : 'Nothing queued from this read. The next test comes from the queue or the persona panel.'}</div>`;
+      return;
+    }
+    $(el).innerHTML = rows.map(r => `<div class="row">
+      <div><div class="nm">${esc(r.what)}</div>
+        <div class="dt">${esc(r.detail || '')}</div>
+        <div class="ev">${esc(r.evidence || '')}</div></div>
+      <div style="text-align:right">
+        <span class="st ${kind === 'fix' ? 'bad' : 'warn'}">${esc(r.where || (kind === 'fix' ? 'fix now' : 'test later'))}</span>
+        ${(r.sessions || []).length ? `<div style="margin-top:8px"><a class="jumpto" href="#s-${esc(r.sessions[0])}">see the session</a></div>` : ''}
+      </div></div>`).join('');
+  };
+  list(D.fix_now, 'fixnow', 'fix');
+  list(D.test_later, 'testlater', 'test');
+
+  // heat map
+  const H = D.heatmap || {};
+  $('heat-note').textContent = H.note || '';
+  const views = H.views || [];
+  let vi = 0, layers = {click: true, rageclick: true, scrolldepth: false};
+  const COL = {click: [201, 100, 66], rageclick: [181, 51, 51], scrolldepth: [61, 122, 74]};
+  const draw = () => {
+    const v = views[vi]; const cv = $('hmcanvas'); const img = $('hmimg'); const stage = $('hmstage');
+    if (!v || !cv) return;
+    const hasImg = !!(v.image && img.clientHeight > 4);
+    const W = (hasImg ? img.clientWidth : stage.clientWidth) || v.width;
+    // no screenshot behind it: keep the page's own shape so the dots land where they landed on the page
+    const Hh = hasImg ? img.clientHeight : Math.max(320, Math.min(2400, Math.round(W * (v.height || 1) / (v.width || 1))));
+    if (!hasImg) { stage.style.height = Hh + 'px'; stage.style.width = '100%'; }
+    cv.width = W; cv.height = Hh;
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, W, Hh);
+    const scale = Hh / (v.height || 1);
+    ['scrolldepth', 'click', 'rageclick'].forEach(kind => {
+      if (!layers[kind]) return;
+      const pts = (v.points || {})[kind] || [];
+      const max = Math.max(1, ...pts.map(p => p.n || 1));
+      pts.forEach(p => {
+        const [r, g, b] = COL[kind];
+        if (kind === 'scrolldepth') {
+          const y = (p.y || 0) * scale;
+          ctx.fillStyle = `rgba(${r},${g},${b},.16)`;
+          ctx.fillRect(0, y - 2, W, 4);
+          ctx.fillStyle = `rgba(20,20,19,.72)`;
+          ctx.font = '11px ui-monospace,Menlo,monospace';
+          ctx.fillText(`${p.n} still here`, 8, Math.max(12, y - 6));
+          return;
+        }
+        const x = (p.x == null ? 0.5 : p.x) * W, y = (p.y || 0) * scale;
+        const rad = 10 + 26 * Math.sqrt((p.n || 1) / max);
+        const grd = ctx.createRadialGradient(x, y, 1, x, y, rad);
+        grd.addColorStop(0, `rgba(${r},${g},${b},.62)`);
+        grd.addColorStop(1, `rgba(${r},${g},${b},0)`);
+        ctx.fillStyle = grd;
+        ctx.beginPath(); ctx.arc(x, y, rad, 0, 6.2832); ctx.fill();
+      });
+    });
+  };
+  if (!views.length) {
+    $('hmbar').innerHTML = `<span class="st muted">no heat map points yet</span>`;
+    $('hmstage').classList.add('hide');
+    $('hmnote').textContent = H.note || 'No heat map points on file for this page yet. PostHog collects them on the live page and keeps them 90 days. The click counts in the read still come from the event log.';
+    $('hmnote').classList.remove('hide');
+  } else {
+    const v0 = views[vi];
+    $('hmstage').classList.toggle('phone', (v0.width || 0) < 700);
+    $('hmimg').src = v0.image || '';
+    if (!v0.image) {
+      $('hmimg').style.display = 'none';
+      $('hmnote').textContent = 'The dots are real; the picture of the page behind them is missing. Run the page map on this URL and rebuild to see them in place.';
+      $('hmnote').classList.remove('hide');
+    }
+    const btns = [];
+    views.forEach((v, i) => btns.push({id: 'v' + i, label: v.viewport, on: () => i === vi, act: () => { vi = i; const im = $('hmimg'); im.src = v.image || ''; im.style.display = v.image ? 'block' : 'none'; $('hmstage').classList.toggle('phone', (v.width || 0) < 700); }}));
+    ['click', 'rageclick', 'scrolldepth'].forEach(k => btns.push({id: k, label: k === 'scrolldepth' ? 'how far they got' : (k === 'rageclick' ? 'rage clicks' : 'clicks'), on: () => layers[k], act: () => { layers[k] = !layers[k]; }}));
+    $('hmbar').innerHTML = btns.map(b => `<button class="tgl" data-id="${b.id}" aria-pressed="${b.on()}">${esc(b.label)}</button>`).join('');
+    $('hmbar').addEventListener('click', e => {
+      const t = e.target.closest('.tgl'); if (!t) return;
+      const b = btns.find(x => x.id === t.dataset.id); if (!b) return;
+      b.act();
+      [...$('hmbar').querySelectorAll('.tgl')].forEach(x => { const bb = btns.find(y => y.id === x.dataset.id); x.setAttribute('aria-pressed', bb.on()); });
+      setTimeout(draw, 30);
+    });
+    $('hmimg').addEventListener('load', draw);
+    window.addEventListener('resize', draw);
+    setTimeout(draw, 60);
+  }
+
+  // section bands
+  const secs = D.sections || [];
+  const measured = secs.some(s => s.reached != null);
+  const top = measured ? Math.max(...secs.map(s => s.reached || 0), 1) : 1;
+  $('bands').innerHTML = secs.length ? secs.map(s => {
+    const tags = [s.paused ? `${s.paused} paused` : '', s.stopped ? `${s.stopped} stopped here` : '', s.broken ? `${s.broken} saw something broken` : ''].filter(Boolean).join(' · ');
+    const reach = s.reached == null ? 'not measured yet' : `${n(s.reached)} reached it`;
+    return `<div class="band-row"><div class="nm">${esc(s.name)}</div>
+      ${s.reached == null ? '' : `<div class="bar"><i style="width:${Math.round(100 * (s.reached || 0) / top)}%"></i></div>`}
+      <div class="sub">${reach}${tags ? ' · ' + esc(tags) : ''}</div></div>`;
+  }).join('') : '<div class="grey">No page map yet, so the sections have no names. Run the page map and this fills in.</div>';
+
+  // the form ladder
+  const F = D.form || {};
+  $('form-note').textContent = F.enough
+    ? `${n(F.starters)} people started the form and ${n(F.sent)} sent it.`
+    : `${n(F.starters)} people started the form. A percentage needs 100 starters, so these are counts.`;
+  const fields = F.fields || [];
+  const topf = Math.max(1, F.starters || 0, ...fields.map(f => f.touched || 0));
+  const lastField = (F.last_field || [])[0];
+  $('ladder').innerHTML = [
+    `<div class="rung"><div><b>Started the form</b></div><div class="bar"><i style="width:100%"></i></div><div class="n">${n(F.starters)}</div></div>`,
+    ...fields.map(f => {
+      const lost = (f.touched || 0) - (f.filled || 0);
+      const isWall = lastField && lastField.field === f.field;
+      return `<div class="rung${isWall ? ' dropped' : ''}"><div>${esc(f.field)}${isWall ? ' <span class="st bad">the wall</span>' : ''}</div>
+        <div class="bar"><i style="width:${Math.round(100 * (f.touched || 0) / topf)}%"></i></div>
+        <div class="n">${n(f.touched)} touched · ${n(lost)} left it empty</div></div>`;
+    }),
+    `<div class="rung"><div><b>Sent it</b></div><div class="bar"><i style="width:${Math.round(100 * (F.sent || 0) / topf)}%"></i></div><div class="n">${n(F.sent)}</div></div>`,
+    lastField ? `<div class="rung"><div></div><div class="sub" style="font-size:13px;color:var(--body)">Last field before giving up: <b>${esc(lastField.field)}</b>, ${n(lastField.n)} people.</div><div class="n"></div></div>` : '',
+  ].join('');
+
+  // the ten
+  const byStrat = {};
+  (D.sessions_read || []).forEach(s => (byStrat[s.stratum] = byStrat[s.stratum] || []).push(s));
+  const vpill = v => ({converted: 'good', bug: 'bad', friction: 'warn', unconvinced: 'warn'}[v] || 'muted');
+  $('strata').innerHTML = (D.strata || []).map(st => {
+    const rows = byStrat[st.key] || [];
+    return `<div class="strat"><h3 class="display">${esc(st.key)}</h3><p>${esc(st.what)}</p></div>
+      ${rows.length ? `<div class="sgrid">${rows.map(s => `
+        <div class="card scard" id="s-${esc(s.sid)}">
+          <div class="top">
+            <div><h4>${esc(s.sid.slice(0, 8))}</h4>
+              <div class="k">${esc(s.device || '')} · ${n(s.secs)} seconds · scrolled ${n(s.scroll)}%</div></div>
+            <div style="text-align:right"><span class="st ${vpill(s.verdict)}">${esc(s.verdict || 'unclear')}</span>
+              <div class="k" style="margin-top:6px">${esc(s.confidence || '')} confidence</div></div>
+          </div>
+          <div class="mom">${(s.moments || []).map(m => `<div class="mo"><span class="t">${esc(m.t)}</span>
+            <span><b>${esc(m.section)}</b> · ${esc(m.saw)}${m.pause_s >= 5 ? ` <span class="k">(${Math.round(m.pause_s)}s pause)</span>` : ''}</span></div>`).join('')
+            || '<div class="k">No moments survived the check on this session.</div>'}</div>
+          ${s.one_fix ? `<div class="fix"><b>One fix:</b> ${esc(s.one_fix.change)} <span class="k">(${esc(s.one_fix.section)}, from ${esc(s.one_fix.because_t)})</span></div>` : ''}
+          <div class="foot">
+            ${s.claude ? `${esc(s.claude)}<br/>` : ''}
+            ${(s.broken || []).map(b => `Broken at ${esc(b.t)}: ${esc(b.what)}${b.video_only ? ' (seen on the video only)' : ''}<br/>`).join('')}
+            ${s.replay ? `<a href="${esc(s.replay)}" target="_blank" rel="noopener">Watch it in PostHog</a>` : ''}
+            ${s.video ? `<span class="k"> ${esc(s.video)}</span>` : ''}
+          </div>
+        </div>`).join('')}</div>` : '<div class="grey">No session in this group in this window. That is itself a finding.</div>'}`;
+  }).join('');
+
+  // trust and market
+  const T = D.trust || {};
+  $('trustlist').innerHTML = [
+    `<li><b>PostHog:</b> ${n(T.posthog)} leads the server accepted</li>`,
+    T.crm != null ? `<li><b>Your CRM:</b> ${n(T.crm)} contacts</li>` : `<li>Your CRM number was not given this run.</li>`,
+    T.ads != null ? `<li><b>Google Ads:</b> ${n(T.ads)} conversions · a 10 to 30% gap is normal</li>` : `<li>Google Ads conversions were not given this run.</li>`,
+    T.note ? `<li>${esc(T.note)}</li>` : '',
+  ].join('');
+  const M = D.market || {};
+  $('marketlist').innerHTML = [
+    `<li><b>You:</b> ${M.you == null ? '-' : M.you + '%'} of sessions become a lead</li>`,
+    `<li><b>${esc((M.vertical || 'home services'))} median:</b> ${M.median == null ? '-' : M.median + '%'}</li>`,
+    `<li><b>Forms only, all industries:</b> ${M.forms_only == null ? '-' : M.forms_only + '%'}</li>`,
+    M.note ? `<li>${esc(M.note)}</li>` : '',
+  ].join('');
+
+  // not enough yet
+  const ne = D.not_enough || [];
+  $('greys').innerHTML = ne.length
+    ? ne.map(g => `<div class="grey"><b>${esc(g.what)}</b><br/>${esc(g.why)}</div>`).join('')
+    : '<div class="grey"><b>Nothing is short.</b><br/>Every number on this page has enough behind it to read.</div>';
+  if (D.not_read && D.not_read.length) {
+    $('greys').insertAdjacentHTML('beforeend', `<div class="grey"><b>${D.not_read.length} session(s) not read</b><br/>${D.not_read.map(r => esc(r.sid ? r.sid.slice(0, 8) + ': ' + r.why : r)).join('<br/>')}</div>`);
+  }
+})();
+</script>
+</body>
+</html>

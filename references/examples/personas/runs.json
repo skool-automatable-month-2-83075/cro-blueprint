@@ -1,0 +1,27 @@
+[
+ {
+  "date": "2026-09-21",
+  "round": 1,
+  "page": "/lp/emergency-plumber",
+  "page_hash": "example",
+  "model": "claude-fable-5-1",
+  "verdicts": [
+   {"persona": "Burst-pipe Brenda", "share": 55, "primary": true, "verdict": "LEAVE", "reason": "no phone number in the first screen, the only button says Get a quote", "element": "hero", "out_of_control": false, "confirmed_by": "call, 2 September"},
+   {"persona": "Landlord Leo", "share": 30, "primary": false, "verdict": "LEAVE", "reason": "no price anywhere, the FAQ says call for a quote", "element": "pricing", "out_of_control": false, "confirmed_by": "none"},
+   {"persona": "Renovation Rita", "share": 15, "primary": false, "verdict": "STAY", "reason": "", "element": "", "out_of_control": false, "confirmed_by": "none"}
+  ],
+  "fix_applied": "tap-to-call number and the answered-by-a-person line moved into the first screen"
+ },
+ {
+  "date": "2026-09-23",
+  "round": 2,
+  "page": "/lp/emergency-plumber",
+  "page_hash": "example",
+  "model": "claude-fable-5-1",
+  "verdicts": [
+   {"persona": "Burst-pipe Brenda", "share": 55, "primary": true, "verdict": "STAY", "reason": "", "element": "", "out_of_control": false, "confirmed_by": "none"},
+   {"persona": "Landlord Leo", "share": 30, "primary": false, "verdict": "LEAVE", "reason": "call-out price still missing, only a from-price on the emergency job", "element": "pricing", "out_of_control": false, "confirmed_by": "search term: plumber fixed price call out"},
+   {"persona": "Renovation Rita", "share": 15, "primary": false, "verdict": "LEAVE", "reason": "the headline is the emergency line, nothing says remodels are done here", "element": "headline", "out_of_control": true, "confirmed_by": "none"}
+  ]
+ }
+]

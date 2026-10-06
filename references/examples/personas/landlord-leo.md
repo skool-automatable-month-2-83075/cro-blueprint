@@ -1,0 +1,50 @@
+# Landlord Leo · rental repairs
+Example persona file · fictional, built the way a real one is · copy the shape, never the content
+
+- Sources:
+  - 11 calls, 4 DM threads, 90 days of search terms
+  - May to September
+- Age and household:
+  - 38 to 60
+  - owns two to six units
+  - never on site when it breaks
+- Device and moment:
+  - desktop, at work
+  - weekday daytime
+  - reading a tenant's text with a photo of the leak
+- Urgency:
+  - same-hour 10%
+  - this-week 60%
+  - researching 30%
+- Trigger: "the tenant sent me a photo of the ceiling"
+- What they buy on: a fixed price before anyone shows up, and an invoice the same day
+- Personality: Analyst - wants the fixed price and the invoice before anything else
+- Moves them:
+  - Tell me exactly what happens
+  - Save me money
+  - Save me effort
+- Silent question: "will I get a bill I cannot pass on or explain?"
+- Leave moment:
+  - no price anywhere, only "call for a quote"
+  - no way to book without phoning
+  - a page written for homeowners standing in the flood
+- Anxiety and habit:
+  - being upsold on a job he cannot see
+  - has a plumber he half trusts and only switches after a bad invoice
+- Verbatim lines:
+  - "just tell me what a call-out costs, I am not the one standing in the water" · call, 11 June
+  - "can you invoice the company and send photos when it is done" · call, 3 August
+  - "the last guy charged two visits for one tap" · DM, 27 July
+  - "plumber fixed price call out" · search term
+  - "plumber invoice landlord" · search term
+  - "I need it done this week, not tonight" · call, 19 September
+- Disposition: comparing three tabs, will read the price section and nothing else first
+- Not this person:
+  - not the tenant, who will never pay
+  - not a property manager with a maintenance contract already
+- Out of the page's control:
+  - wants a price below the minimum call-out
+  - units outside the service area
+- Approved: 20 September 2026 by the owner
+- Calibration: none yet
+- Model pin: none yet

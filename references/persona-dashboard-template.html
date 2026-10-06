@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Persona panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<!--
+  The persona dashboard. Same shell as the Google Ads audit dashboard and the SEO audit dashboard.
+  code/build_persona_dashboard.py copies this file and replaces ONLY the JSON inside <script id="persona-data">.
+  Never edit markup, CSS or script per run - the renderer draws everything from the JSON.
+  The JSON shipped here is the worked example built from references/examples/personas/ (fictional).
+-->
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  :root { --canvas:#f5f4ed; --ivory:#faf9f5; --sand:#e8e6dc; --ink:#141413; --body:#5e5d59; --muted:#87867f; --hairline:#f0eee6; --hairline-soft:#e8e6dc; --ring:#d1cfc5;
+    --terracotta:#c96442; --terracotta-active:#b05538; --coral:#d97757;
+    --good:#3d7a4a; --good-bg:rgba(61,122,74,.08); --good-ring:rgba(61,122,74,.25);
+    --warn:#d4a017; --warn-bg:rgba(212,160,23,.10); --warn-ring:rgba(212,160,23,.30);
+    --bad:#b53333; --bad-bg:rgba(181,51,51,.07); --bad-ring:rgba(181,51,51,.22);
+    --dark:#141413; --on-dark:#faf9f5; --on-dark-soft:#b0aea5; }
+  html { scroll-behavior:smooth; }
+  body { background:var(--canvas); color:var(--ink); font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .display { font-family:"Tiempos Text",Georgia,serif; font-weight:500; }
+  .mono, .kicker, .k, .tag, .st { font-family:"JetBrains Mono",ui-monospace,Menlo,monospace; }
+  .kicker { font-size:11px; text-transform:uppercase; letter-spacing:2px; color:var(--coral); }
+  .k { font-size:11px; color:#6e6d66; }
+  .rail { max-width:1160px; margin:0 auto; padding:0 32px; }
+  .nav { border-bottom:1px solid var(--hairline); background:rgba(245,244,237,.92); backdrop-filter:blur(8px); position:sticky; top:0; z-index:5; }
+  .nav .rail { display:flex; align-items:center; justify-content:space-between; padding-top:14px; padding-bottom:14px; gap:16px; }
+  .wordmark { display:inline-flex; align-items:center; gap:8px; font-size:22px; letter-spacing:-.3px; }
+  .wordmark svg { color:var(--terracotta); }
+  .jump { display:flex; gap:4px; flex-wrap:wrap; }
+  .jump a { font-size:12px; font-weight:500; color:var(--body); text-decoration:none; padding:6px 10px; border-radius:8px; }
+  .jump a:hover { background:var(--sand); color:var(--ink); }
+  .chip { display:inline-flex; align-items:center; gap:6px; border-radius:999px; border:1px solid var(--hairline-soft); background:var(--ivory); padding:4px 12px; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--body); white-space:nowrap; }
+  .chip.ok { color:var(--good); border-color:var(--good-ring); background:var(--good-bg); }
+  .chip.wait { color:#8a6a0c; border-color:var(--warn-ring); background:var(--warn-bg); }
+  header.hero { padding:56px 0 10px; }
+  header.hero h1 { font-size:56px; line-height:1.02; letter-spacing:-1.4px; margin-top:14px; }
+  header.hero .meta { display:flex; flex-wrap:wrap; gap:8px 20px; align-items:center; margin-top:16px; }
+  header.hero .meta .stamp { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color:#6e6d66; }
+  header.hero p.frame { color:var(--body); font-size:15px; max-width:640px; margin-top:18px; line-height:1.6; }
+  section { padding:40px 0; scroll-margin-top:70px; }
+  section.band { background:#fff; border-top:1px solid var(--hairline-soft); border-bottom:1px solid var(--hairline-soft); }
+  .sh { margin-bottom:20px; }
+  .sh h2 { font-size:30px; line-height:1.15; letter-spacing:-.7px; margin-top:6px; }
+  .sh p.lead { color:var(--body); font-size:14.5px; max-width:660px; margin-top:8px; line-height:1.55; }
+  .card { background:var(--ivory); border:1px solid var(--hairline); border-radius:18px; box-shadow:rgba(20,20,19,.05) 0 6px 28px; }
+  .note { font-size:12.5px; color:var(--muted); padding:8px 24px 16px; line-height:1.5; }
+  /* pills */
+  .st { display:inline-block; font-size:10px; text-transform:uppercase; letter-spacing:1px; padding:3px 9px; border-radius:99px; white-space:nowrap; }
+  .st.primary { background:var(--terracotta); color:var(--on-dark); }
+  .st.proto { background:var(--warn-bg); color:#8a6a0c; box-shadow:inset 0 0 0 1px var(--warn-ring); }
+  .st.ok { background:var(--good-bg); color:var(--good); box-shadow:inset 0 0 0 1px var(--good-ring); }
+  .st.wait { background:var(--warn-bg); color:#8a6a0c; box-shadow:inset 0 0 0 1px var(--warn-ring); }
+  .st.nonbuyer { background:var(--sand); color:var(--body); }
+  .st.leave { background:var(--bad); color:#fff; }
+  .st.stay { background:var(--sand); color:var(--body); }
+  /* 01 who buys */
+  .who { padding:28px 30px 10px; }
+  .sharebar { display:flex; height:26px; border-radius:13px; overflow:hidden; background:var(--sand); margin:12px 0 16px; }
+  .sharebar i { display:block; height:100%; position:relative; }
+  .sharebar i span { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; color:#fff; letter-spacing:.5px; }
+  .legend { display:flex; flex-wrap:wrap; gap:12px 26px; padding-bottom:8px; }
+  .reasons { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin:14px 0 8px; }
+  .reason { display:flex; gap:12px; background:#fff; border:1px solid var(--hairline); border-radius:14px; padding:16px 16px 12px; }
+  .reason .rn { font-family:"Tiempos Text",Georgia,serif; font-size:28px; line-height:1; color:var(--terracotta); }
+  .reason h3 { font-size:18px; line-height:1.25; letter-spacing:-.2px; }
+  .reason .rmeta { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 4px; }
+  .reason .say { margin-top:8px; font-size:13.5px; }
+  .reason .rb { min-width:0; }
+  .reason .st, .reason .mchip { white-space:normal; line-height:1.4; }
+  @media (max-width:760px) { .reasons { grid-template-columns:1fr; } }
+  .lg { display:inline-flex; align-items:center; gap:8px; text-decoration:none; color:inherit; font-size:14px; }
+  .lg b { font-weight:600; } .lg:hover b { text-decoration:underline; }
+  .sw { width:12px; height:12px; border-radius:3px; display:inline-block; flex-shrink:0; }
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--hairline); }
+  .stat { padding:22px 30px; border-right:1px solid var(--hairline); } .stat:last-child { border-right:0; }
+  .stat .v { font-family:"Tiempos Text",Georgia,serif; font-weight:500; font-size:46px; letter-spacing:-1.6px; line-height:1.05; }
+  .stat .v.txt { font-size:27px; letter-spacing:-.7px; line-height:1.15; padding-top:8px; }
+  .stat .k { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1.5px; color:var(--ink); margin-top:6px; }
+  .stat .sub { font-size:12px; color:var(--body); margin-top:7px; line-height:1.5; }
+  .conf { display:grid; grid-template-columns:auto 1fr; gap:0; border-bottom:1px solid var(--hairline); }
+  .confnum { padding:26px 30px; display:flex; flex-direction:column; align-items:center; justify-content:center; border-right:1px solid var(--hairline); min-width:190px; }
+  .confnum .n { font-family:"Tiempos Text",Georgia,serif; font-weight:500; font-size:64px; line-height:1; letter-spacing:-2.5px; color:var(--cc); }
+  .confnum .of { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; margin-top:6px; }
+  .confnum .band { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; letter-spacing:1.2px; text-transform:uppercase; color:var(--cc); margin-top:10px; text-align:center; }
+  .confbody { padding:22px 30px 24px; }
+  .confbody .means { font-family:"Tiempos Text",Georgia,serif; font-size:19px; line-height:1.4; letter-spacing:-.3px; margin-bottom:16px; }
+  .cparts { display:flex; flex-direction:column; gap:9px; }
+  .cpart { display:grid; grid-template-columns:132px 1fr 86px; gap:12px; align-items:center; font-size:12.5px; }
+  .cpart .cn { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; text-transform:uppercase; letter-spacing:1.2px; color:#6e6d66; }
+  .cpart .ctrack { height:7px; border-radius:4px; background:var(--sand); overflow:hidden; }
+  .cpart .ctrack i { display:block; height:100%; background:var(--cc); }
+  .cpart .cw { color:var(--body); font-size:12px; }
+  .cpart .cv { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; color:var(--muted); text-align:right; }
+  .cpart.zero .cn, .cpart.zero .cv { color:var(--muted); }
+  .st.assumed { background:var(--warn-bg); color:#8a6a0c; box-shadow:inset 0 0 0 1px var(--warn-ring); }
+  blockquote.assumed { border-left-style:dashed !important; }
+  blockquote.assumed .src { color:#8a6a0c; }
+  .thin { margin:0 0 20px; padding:18px 22px; border-radius:14px; background:var(--warn-bg); border:1px solid var(--warn-ring); }
+  .thin .kicker { color:#8a6a0c; }
+  .thin h3 { font-family:"Tiempos Text",Georgia,serif; font-weight:500; font-size:22px; letter-spacing:-.4px; margin:8px 0 8px; }
+  .thin p { font-size:13.5px; line-height:1.6; color:var(--ink); max-width:780px; }
+  .thin p + p { margin-top:8px; }
+  .whybox { margin:0 30px 22px; padding:14px 18px; border-radius:12px; background:color-mix(in srgb, var(--terracotta) 7%, transparent); border:1px solid color-mix(in srgb, var(--terracotta) 22%, transparent); font-size:13.5px; line-height:1.6; color:var(--ink); }
+  .whybox b { font-weight:600; }
+  /* 02 the buyers - one at a time (Jono, 28 September 2026: "one tenth of this stuff is needed") */
+  .btabs { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .btab { font:inherit; display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:99px; border:1px solid var(--hairline-soft);
+    background:var(--ivory); cursor:pointer; font-size:14px; color:var(--ink); transition:background .12s, border-color .12s; }
+  .btab .dot { width:10px; height:10px; border-radius:50%; background:var(--pc); flex-shrink:0; }
+  .btab .k { font-size:11px; }
+  .btab:hover { background:#fff; }
+  .btab.on { background:color-mix(in srgb, var(--pc) 10%, #fff); border-color:var(--pc); box-shadow:inset 0 0 0 1px var(--pc); }
+  .bnav { margin-left:auto; display:flex; gap:6px; }
+  .bnav button { font:inherit; width:34px; height:34px; border-radius:50%; border:1px solid var(--hairline-soft); background:var(--ivory); cursor:pointer; font-size:16px; color:var(--body); }
+  .bnav button:hover { background:#fff; color:var(--ink); }
+  .bp { overflow:hidden; }
+  .bp .top { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; padding:24px 28px 0; }
+  .bp h3 { font-size:32px; letter-spacing:-.9px; line-height:1.05; margin-top:6px; }
+  .bp .lbl { color:var(--body); font-size:14.5px; margin-top:5px; }
+  .bp .lbl.how { color:var(--ink); } .bp .lbl.how .k { text-transform:uppercase; letter-spacing:1.2px; font-size:9.5px; margin-right:6px; font-family:"JetBrains Mono",ui-monospace,monospace; }
+  .bp .tags { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .bp .say { font-family:"Tiempos Text",Georgia,serif; font-size:24px; line-height:1.3; letter-spacing:-.4px; margin:18px 28px 0; padding-left:18px; border-left:4px solid var(--pc); }
+  .bp .say.assumed { border-left-style:dashed; }
+  .bp .say .src { display:block; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10.5px; color:var(--muted); margin-top:8px; letter-spacing:.3px; }
+  .bp .three { display:grid; grid-template-columns:repeat(3,1fr); margin-top:22px; border-top:1px solid var(--hairline); }
+  .bp .three > div { padding:16px 22px 18px; border-right:1px solid var(--hairline); min-width:0; } .bp .three > div:last-child { border-right:0; }
+  .bp .three .ml { display:block; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:1.3px; margin-bottom:7px; }
+  .bp .three .ml.q { color:var(--pc); } .bp .three .ml.y { color:var(--good); } .bp .three .ml.n { color:var(--bad); }
+  .bp .three p { font-size:14px; line-height:1.45; color:var(--ink); }
+  .bp .three p.qq { font-family:"Tiempos Text",Georgia,serif; font-size:16.5px; }
+  .bp .moves { display:flex; gap:6px; flex-wrap:wrap; align-items:center; padding:14px 28px 18px; border-top:1px solid var(--hairline); }
+  .bp .moves .ml { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:1.3px; color:#6e6d66; margin-right:4px; }
+  .mchip { font-size:12px; font-weight:600; padding:3px 10px; border-radius:99px; color:var(--pc); background:color-mix(in srgb, var(--pc) 10%, transparent); }
+  .pchip { font-size:11.5px; font-weight:600; padding:3px 10px; border-radius:99px; background:var(--sand); color:var(--ink); }
+  .buyer { margin-top:22px; overflow:hidden; }
+  .bh { padding:0; border-bottom:1px solid var(--hairline); }
+  .btop { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; padding:26px 30px 0; }
+  .bh h3 { font-size:38px; letter-spacing:-1.1px; line-height:1.05; margin-top:8px; }
+  .bh .lbl { color:var(--body); font-size:15px; margin-top:6px; }
+  .appr { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; text-transform:uppercase; letter-spacing:1.2px; margin-top:10px; }
+  .appr.yes { color:var(--good); } .appr.no { color:var(--muted); }
+  .pills { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+  .score { min-width:92px; border-radius:14px; border:1px solid; display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; padding:9px 16px; color:var(--pc); background:color-mix(in srgb, var(--pc) 9%, transparent); border-color:color-mix(in srgb, var(--pc) 28%, transparent); }
+  .score .v { font-family:"Tiempos Text",Georgia,serif; font-weight:500; font-size:26px; letter-spacing:-1px; line-height:1; }
+  .score .u { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:8px; letter-spacing:1px; opacity:.8; margin-top:4px; text-transform:uppercase; text-align:center; }
+  /* the one line that sells the buyer */
+  .pull { padding:22px 30px 26px; }
+  .pull blockquote { font-family:"Tiempos Text",Georgia,serif; font-size:30px; line-height:1.28; letter-spacing:-.6px; color:var(--ink); position:relative; padding-left:22px; border-left:4px solid var(--pc); }
+  .pull .src { display:block; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; color:var(--muted); margin-top:12px; letter-spacing:.3px; }
+  .ask { margin:0 30px 24px; padding:16px 20px; border-radius:14px; background:color-mix(in srgb, var(--pc) 8%, transparent); }
+  .ask .kicker { color:var(--pc); }
+  .ask p { font-family:"Tiempos Text",Georgia,serif; font-size:21px; line-height:1.35; letter-spacing:-.3px; margin-top:8px; }
+  .decide { display:grid; grid-template-columns:1fr 1fr; border-top:1px solid var(--hairline); align-items:start; }
+  .dcol { padding:20px 30px 22px; min-width:0; } .dcol + .dcol { border-left:1px solid var(--hairline); }
+  .dcol h4, .quotes h4 { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:#6e6d66; font-weight:500; margin-bottom:16px; }
+  .dcol h4.stay { color:var(--good); } .dcol h4.go { color:var(--bad); }
+  .reasons { list-style:none; }
+  .reasons li { display:flex; gap:11px; align-items:flex-start; padding:7px 0; font-size:14px; line-height:1.5; }
+  .reasons li .ic { flex-shrink:0; width:17px; height:17px; border-radius:5px; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+  .reasons li .ic.y { background:var(--good); } .reasons li .ic.n { background:var(--bad); }
+  dl.facts { display:grid; grid-template-columns:116px 1fr; gap:13px 16px; font-size:13.5px; line-height:1.5; }
+  dl.facts dt { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10px; text-transform:uppercase; letter-spacing:1.2px; color:#6e6d66; padding-top:3px; }
+  dl.facts dd { min-width:0; overflow-wrap:anywhere; }
+  dl.facts dd ul { margin:0; padding-left:16px; } dl.facts dd li { padding:1px 0; }
+  .ubar { display:flex; height:11px; border-radius:6px; overflow:hidden; background:var(--sand); margin:4px 0 8px; } .ubar i { display:block; height:100%; }
+  .ulbl { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--body); } .ulbl span { display:inline-flex; align-items:center; gap:6px; }
+  .meta { display:grid; grid-template-columns:repeat(3,1fr); border-top:1px solid var(--hairline); }
+  .mcell { padding:16px 22px; border-right:1px solid var(--hairline); border-bottom:1px solid var(--hairline); min-width:0; }
+  .mcell:nth-child(3n) { border-right:0; }
+  .ml { display:block; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:9.5px; text-transform:uppercase; letter-spacing:1.3px; color:#6e6d66; margin-bottom:7px; }
+  .mv { display:block; font-size:13px; line-height:1.5; color:var(--ink); overflow-wrap:anywhere; }
+  .meta .ubar { margin:2px 0 7px; } .meta .ulbl { font-size:11.5px; }
+  .quotes { padding:22px 30px 26px; border-top:1px solid var(--hairline); background:#fff; }
+  .qgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px 26px; }
+  .quotes blockquote { margin:0; padding:6px 0 6px 14px; font-family:"Tiempos Text",Georgia,serif; font-size:16px; line-height:1.45; border-left:3px solid color-mix(in srgb, var(--pc) 45%, transparent); break-inside:avoid; }
+  .quotes .src { display:block; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10.5px; color:var(--muted); margin-top:5px; letter-spacing:.3px; }
+  details.fold { border-top:1px solid var(--hairline); }
+  details.fold summary { cursor:pointer; list-style:none; padding:13px 30px; font-size:13px; font-weight:500; color:var(--terracotta); }
+  details.fold summary::-webkit-details-marker { display:none; }
+  details.fold summary:hover { background:var(--sand); }
+  details.fold .in { padding:6px 30px 22px; }
+  /* 03 the panel */
+  .rh { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; padding:22px 22px 16px; } .rh .k { display:block; margin-top:4px; }
+  .rh h3 { font-size:21px; letter-spacing:-.3px; }
+  .seeread { margin-left:auto; font-size:13px; font-weight:600; color:var(--terracotta); text-decoration:none; padding:6px 12px; border-radius:8px; background:rgba(201,100,66,.09); }
+  .seeread:hover { background:rgba(201,100,66,.16); }
+  .seebar { padding:16px 22px 20px; border-top:1px solid var(--hairline); } .seebar .seeread { margin-left:0; display:inline-block; font-size:14.5px; padding:11px 18px; border-radius:12px; background:var(--terracotta); color:#faf9f5; }
+  .seebar .seeread:hover { background:var(--terracotta-active); }
+  .rules { font-size:13px; color:var(--body); padding:0 2px 16px; line-height:1.7; max-width:820px; }
+  .vrow { display:grid; grid-template-columns:210px 82px 1fr 200px; gap:16px; align-items:center; padding:14px 22px; border-top:1px solid var(--hairline); font-size:14px; }
+  .vrow.leave { background:var(--bad-bg); }
+  .vrow.v3 { grid-template-columns:170px 76px 1fr; } .vrow.v3 .el { color:var(--body); } .vrow.v3 .el b { color:var(--ink); font-weight:600; }
+  .vrow .vwho { display:flex; flex-direction:column; gap:4px; } .vrow .vwho b { font-weight:600; }
+  .vrow .el b { font-weight:600; } .vrow .cf { text-align:right; }
+  .call { padding:18px 22px 20px; background:var(--sand); border-radius:0 0 18px 18px; }
+  .call ul { margin:10px 0 0 17px; font-size:14px; line-height:1.65; }
+  .fixnote { padding:13px 22px; font-size:13.5px; color:var(--body); border-top:1px solid var(--hairline); }
+  /* 04 next */
+  footer { background:var(--dark); color:var(--on-dark-soft); padding:44px 0; font-size:13px; margin-top:24px; }
+  footer .rail { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; } footer .wordmark { color:var(--on-dark); font-size:18px; }
+  .hide { display:none !important; }
+  @media (max-width:960px) {
+    header.hero h1 { font-size:36px } .jump { display:none }
+    .stats { grid-template-columns:1fr } .stat { border-right:0; border-bottom:1px solid var(--hairline) } .stat:last-child { border-bottom:0 }
+    .decide { grid-template-columns:1fr } .dcol + .dcol { border-left:0; border-top:1px solid var(--hairline) }
+    .meta { grid-template-columns:1fr } .mcell { border-right:0 }
+    .btop { flex-direction:column } .pills { justify-content:flex-start } .bh h3 { font-size:30px }
+    .pull blockquote { font-size:22px } .ask p { font-size:18px }
+    .qgrid { grid-template-columns:1fr } .bp .three { grid-template-columns:1fr } .bp .three > div { border-right:0; border-bottom:1px solid var(--hairline) } .bp .top { flex-direction:column } .bp .say { font-size:19px } .bnav { display:none }
+    dl.facts { grid-template-columns:1fr; gap:4px 0 } dl.facts dd { margin-bottom:10px }
+    .vrow { grid-template-columns:1fr 82px } .vrow .el, .vrow .cf { grid-column:1 / -1; text-align:left }
+    .conf { grid-template-columns:1fr } .confnum { border-right:0; border-bottom:1px solid var(--hairline); min-width:0; flex-direction:row; gap:12px; padding:20px }
+    .confnum .n { font-size:44px } .confnum .of, .confnum .band { margin-top:0 }
+    .confbody { padding:20px } .confbody .means { font-size:17px }
+    .cpart { grid-template-columns:1fr auto } .cpart .ctrack { grid-column:1 / -1; order:3 } .cpart .cw { grid-column:1 / -1; order:4 }
+  }
+</style>
+<script id="persona-data" type="application/json">{
+ "business": "Dave's Plumbing",
+ "date": "2 October 2026",
+ "personas": [
+  {
+   "id": "p-burst-pipe-brenda",
+   "file": "burst-pipe-brenda.md",
+   "name": "Burst-pipe Brenda",
+   "label": "emergency plumbing",
+   "primary": false,
+   "share": 1,
+   "jobs": null,
+   "conversations": 20,
+   "proto": false,
+   "approved": "20 September 2026 by the owner",
+   "orgs": null,
+   "quotes": [
+    {
+     "text": "\"I just need someone here tonight, I don't care what it costs within reason\"",
+     "source": "call, 14 August",
+     "assumed": false
+    },
+    {
+     "text": "\"the other place said tomorrow morning\"",
+     "source": "call, 2 September",
+     "assumed": false
+    },
+    {
+     "text": "\"do you actually answer or is it a machine\"",
+     "source": "DM, 21 July",
+     "assumed": false
+    },
+    {
+     "text": "\"emergency plumber open now\"",
+     "source": "search term",
+     "assumed": false
+    },
+    {
+     "text": "\"how much is a call out\"",
+     "source": "search term",
+     "assumed": false
+    }
+   ],
+   "urgency": [
+    {
+     "kind": "same-hour",
+     "pct": 70
+    },
+    {
+     "kind": "this-week",
+     "pct": 30
+    },
+    {
+     "kind": "researching",
+     "pct": 0
+    }
+   ],
+   "assumed_quotes": 0,
+   "evidence_quotes": 5,
+   "fields": {
+    "sources": [
+     "14 calls, 6 DM threads, 90 days of search terms",
+     "June to September"
+    ],
+    "age and household": [
+     "45 to 65",
+     "owns the home",
+     "often alone when it happens"
+    ],
+    "device and moment": [
+     "phone",
+     "evenings and weekends",
+     "standing in the kitchen with a towel on the floor"
+    ],
+    "urgency": [
+     "same-hour 70%",
+     "this-week 30%",
+     "researching 0%"
+    ],
+    "trigger": [
+     "\"there is water coming through the ceiling\""
+    ],
+    "what they buy on": [
+     "can you come right now, and is the number answered by a person"
+    ],
+    "personality": [
+     "Driver - in a hurry, wants someone at the door tonight"
+    ],
+    "moves them": [
+     "Stop the pain I'm in now",
+     "Make it safe to say yes",
+     "Save me time"
+    ],
+    "silent question": [
+     "\"is anyone actually going to pick up?\""
+    ],
+    "leave moment": [
+     "no phone number in the first screen",
+     "a form with more than four fields",
+     "\"we'll get back to you\""
+    ],
+    "anxiety and habit": [
+     "being overcharged in a panic",
+     "calls three companies and takes the first that answers"
+    ],
+    "verbatim lines": [
+     "\"I just need someone here tonight, I don't care what it costs within reason\" · call, 14 August",
+     "\"the other place said tomorrow morning\" · call, 2 September",
+     "\"do you actually answer or is it a machine\" · DM, 21 July",
+     "\"emergency plumber open now\" · search term",
+     "\"how much is a call out\" · search term"
+    ],
+    "disposition": [
+     "sceptical, in a hurry, one tab open, will not scroll unless the first screen earns it"
+    ],
+    "not this person": [
+     "not a landlord comparing quotes",
+     "not a renovation planner reading case studies"
+    ],
+    "out of the page's control": [
+     "outside the service area",
+     "no availability tonight"
+    ],
+    "approved": [
+     "20 September 2026 by the owner"
+    ],
+    "calibration": [
+     "none yet"
+    ],
+    "model pin": [
+     "none yet"
+    ]
+   },
+   "moves": [
+    "stop_the_pain",
+    "reduce_risk",
+    "save_time"
+   ],
+   "moves_labels": [
+    "Stop the pain I'm in now",
+    "Make it safe to say yes",
+    "Save me time"
+   ],
+   "bad_moves": [],
+   "personality": "driver"
+  },
+  {
+   "id": "p-committee-cara",
+   "file": "committee-cara.md",
+   "name": "Committee Cara",
+   "label": "property manager who needs sign-off",
+   "primary": false,
+   "share": 0,
+   "jobs": null,
+   "conversations": 7,
+   "proto": false,
+   "approved": "20 September 2026 by the owner",
+   "orgs": 6,
+   "quotes": [
+    {
+     "text": "\"I need something in writing I can send upstairs\"",
+     "source": "call, 14 May",
+     "assumed": false
+    },
+    {
+     "text": "\"we have twelve units, can you do them all in one visit\"",
+     "source": "call, 3 June",
+     "assumed": false
+    },
+    {
+     "text": "\"I can't sign anything without two other quotes\"",
+     "source": "call, 22 July",
+     "assumed": false
+    },
+    {
+     "text": "\"plumber commercial contract\"",
+     "source": "search term",
+     "assumed": false
+    }
+   ],
+   "urgency": [
+    {
+     "kind": "same-hour",
+     "pct": 0
+    },
+    {
+     "kind": "this-week",
+     "pct": 30
+    },
+    {
+     "kind": "researching",
+     "pct": 70
+    }
+   ],
+   "assumed_quotes": 0,
+   "evidence_quotes": 4,
+   "fields": {
+    "non-buyer": [
+     "yes - seven calls, nobody paid, so she is shown and never counted"
+    ],
+    "sources": [
+     "7 calls with 6 organisations",
+     "March to August",
+     "0 search terms, 0 DM threads on file"
+    ],
+    "device and moment": [
+     "desktop, at the office, often with a colleague on the call"
+    ],
+    "urgency": [
+     "same-hour 0%",
+     "this-week 30%",
+     "researching 70%"
+    ],
+    "trigger": [
+     "\"head office asked us to get three quotes on the block\""
+    ],
+    "what they buy on": [
+     "a written scope she can forward, and one invoice for all twelve units"
+    ],
+    "personality": [
+     "Steady - needs something in writing she can defend to head office"
+    ],
+    "moves them": [
+     "Make it safe to say yes",
+     "Make me look good",
+     "Tell me exactly what happens"
+    ],
+    "silent question": [
+     "\"can I defend picking them if it goes wrong?\""
+    ],
+    "leave moment": [
+     "no way to get a price without a site visit",
+     "a single-job page when she has twelve units",
+     "nothing she can forward to a budget holder"
+    ],
+    "anxiety and habit": [
+     "being blamed for the contractor who let the building down",
+     "keeps the incumbent unless someone makes it easy to switch"
+    ],
+    "verbatim lines": [
+     "\"I need something in writing I can send upstairs\" · call, 14 May",
+     "\"we have twelve units, can you do them all in one visit\" · call, 3 June",
+     "\"I can't sign anything without two other quotes\" · call, 22 July",
+     "\"plumber commercial contract\" · search term"
+    ],
+    "disposition": [
+     "careful, forwards the page before anyone books, never decides on the call"
+    ],
+    "not this person": [
+     "not Leo, who owns his units and decides alone",
+     "not a homeowner with one bathroom"
+    ],
+    "out of the page's control": [
+     "a tender process the page cannot enter",
+     "twelve units outside the service area"
+    ],
+    "approved": [
+     "20 September 2026 by the owner"
+    ],
+    "calibration": [
+     "none yet"
+    ],
+    "model pin": [
+     "none yet"
+    ]
+   },
+   "moves": [
+    "reduce_risk",
+    "look_good",
+    "certainty"
+   ],
+   "moves_labels": [
+    "Make it safe to say yes",
+    "Make me look good",
+    "Tell me exactly what happens"
+   ],
+   "bad_moves": [],
+   "personality": "steady"
+  },
+  {
+   "id": "p-landlord-leo",
+   "file": "landlord-leo.md",
+   "name": "Landlord Leo",
+   "label": "rental repairs",
+   "primary": false,
+   "share": 1,
+   "jobs": null,
+   "conversations": 15,
+   "proto": false,
+   "approved": "20 September 2026 by the owner",
+   "orgs": null,
+   "quotes": [
+    {
+     "text": "\"just tell me what a call-out costs, I am not the one standing in the water\"",
+     "source": "call, 11 June",
+     "assumed": false
+    },
+    {
+     "text": "\"can you invoice the company and send photos when it is done\"",
+     "source": "call, 3 August",
+     "assumed": false
+    },
+    {
+     "text": "\"the last guy charged two visits for one tap\"",
+     "source": "DM, 27 July",
+     "assumed": false
+    },
+    {
+     "text": "\"plumber fixed price call out\"",
+     "source": "search term",
+     "assumed": false
+    },
+    {
+     "text": "\"plumber invoice landlord\"",
+     "source": "search term",
+     "assumed": false
+    },
+    {
+     "text": "\"I need it done this week, not tonight\"",
+     "source": "call, 19 September",
+     "assumed": false
+    }
+   ],
+   "urgency": [
+    {
+     "kind": "same-hour",
+     "pct": 10
+    },
+    {
+     "kind": "this-week",
+     "pct": 60
+    },
+    {
+     "kind": "researching",
+     "pct": 30
+    }
+   ],
+   "assumed_quotes": 0,
+   "evidence_quotes": 6,
+   "fields": {
+    "sources": [
+     "11 calls, 4 DM threads, 90 days of search terms",
+     "May to September"
+    ],
+    "age and household": [
+     "38 to 60",
+     "owns two to six units",
+     "never on site when it breaks"
+    ],
+    "device and moment": [
+     "desktop, at work",
+     "weekday daytime",
+     "reading a tenant's text with a photo of the leak"
+    ],
+    "urgency": [
+     "same-hour 10%",
+     "this-week 60%",
+     "researching 30%"
+    ],
+    "trigger": [
+     "\"the tenant sent me a photo of the ceiling\""
+    ],
+    "what they buy on": [
+     "a fixed price before anyone shows up, and an invoice the same day"
+    ],
+    "personality": [
+     "Analyst - wants the fixed price and the invoice before anything else"
+    ],
+    "moves them": [
+     "Tell me exactly what happens",
+     "Save me money",
+     "Save me effort"
+    ],
+    "silent question": [
+     "\"will I get a bill I cannot pass on or explain?\""
+    ],
+    "leave moment": [
+     "no price anywhere, only \"call for a quote\"",
+     "no way to book without phoning",
+     "a page written for homeowners standing in the flood"
+    ],
+    "anxiety and habit": [
+     "being upsold on a job he cannot see",
+     "has a plumber he half trusts and only switches after a bad invoice"
+    ],
+    "verbatim lines": [
+     "\"just tell me what a call-out costs, I am not the one standing in the water\" · call, 11 June",
+     "\"can you invoice the company and send photos when it is done\" · call, 3 August",
+     "\"the last guy charged two visits for one tap\" · DM, 27 July",
+     "\"plumber fixed price call out\" · search term",
+     "\"plumber invoice landlord\" · search term",
+     "\"I need it done this week, not tonight\" · call, 19 September"
+    ],
+    "disposition": [
+     "comparing three tabs, will read the price section and nothing else first"
+    ],
+    "not this person": [
+     "not the tenant, who will never pay",
+     "not a property manager with a maintenance contract already"
+    ],
+    "out of the page's control": [
+     "wants a price below the minimum call-out",
+     "units outside the service area"
+    ],
+    "approved": [
+     "20 September 2026 by the owner"
+    ],
+    "calibration": [
+     "none yet"
+    ],
+    "model pin": [
+     "none yet"
+    ]
+   },
+   "moves": [
+    "certainty",
+    "save_money",
+    "save_effort"
+   ],
+   "moves_labels": [
+    "Tell me exactly what happens",
+    "Save me money",
+    "Save me effort"
+   ],
+   "bad_moves": [],
+   "personality": "analyst"
+  },
+  {
+   "id": "p-renovation-rita",
+   "file": "renovation-rita.md",
+   "name": "Renovation Rita",
+   "label": "bathroom remodel",
+   "primary": false,
+   "share": 1,
+   "jobs": null,
+   "conversations": 5,
+   "proto": true,
+   "approved": "20 September 2026 by the owner",
+   "orgs": null,
+   "quotes": [
+    {
+     "text": "\"do you have photos of ones you have actually done\"",
+     "source": "call, 14 July",
+     "assumed": false
+    },
+    {
+     "text": "\"we are not in a hurry, we want it done right\"",
+     "source": "call, 2 September",
+     "assumed": false
+    },
+    {
+     "text": "\"roughly what does a full bathroom come to\"",
+     "source": "DM, 30 August",
+     "assumed": false
+    },
+    {
+     "text": "\"bathroom renovation plumber\"",
+     "source": "search term",
+     "assumed": false
+    },
+    {
+     "text": "\"ensuite plumbing cost\"",
+     "source": "search term",
+     "assumed": false
+    }
+   ],
+   "urgency": [
+    {
+     "kind": "same-hour",
+     "pct": 0
+    },
+    {
+     "kind": "this-week",
+     "pct": 10
+    },
+    {
+     "kind": "researching",
+     "pct": 90
+    }
+   ],
+   "assumed_quotes": 0,
+   "evidence_quotes": 5,
+   "fields": {
+    "sources": [
+     "4 calls, 1 DM thread, 90 days of search terms",
+     "fewer than six conversations, so this is a proto-persona"
+    ],
+    "age and household": [
+     "35 to 55",
+     "owns the home, two incomes",
+     "has been planning this for a year"
+    ],
+    "device and moment": [
+     "phone in the evening, desktop at the weekend",
+     "on the sofa with a saved folder of photos"
+    ],
+    "urgency": [
+     "same-hour 0%",
+     "this-week 10%",
+     "researching 90%"
+    ],
+    "trigger": [
+     "\"we finally have the budget for the ensuite\""
+    ],
+    "what they buy on": [
+     "real finished jobs she can see, and a licence number she can check"
+    ],
+    "personality": [
+     "Expressive - buys on the finished photo and how the room will feel"
+    ],
+    "moves them": [
+     "Make it safe to say yes",
+     "Tell me exactly what happens"
+    ],
+    "silent question": [
+     "\"have they done one like mine, and will it look like the photo?\""
+    ],
+    "leave moment": [
+     "stock photos where the finished jobs should be",
+     "an emergency headline that says this is not for her",
+     "no rough price range at all"
+    ],
+    "anxiety and habit": [
+     "a job that runs three weeks over and a bathroom she cannot use",
+     "collects quotes for months and picks the one who showed real work"
+    ],
+    "verbatim lines": [
+     "\"do you have photos of ones you have actually done\" · call, 14 July",
+     "\"we are not in a hurry, we want it done right\" · call, 2 September",
+     "\"roughly what does a full bathroom come to\" · DM, 30 August",
+     "\"bathroom renovation plumber\" · search term",
+     "\"ensuite plumbing cost\" · search term"
+    ],
+    "disposition": [
+     "patient, reads the whole page, screenshots the portfolio to show her partner"
+    ],
+    "not this person": [
+     "not Brenda with a towel on the floor",
+     "not a builder subcontracting the plumbing"
+    ],
+    "out of the page's control": [
+     "a start date more than two months out",
+     "a budget below the minimum remodel price"
+    ],
+    "approved": [
+     "20 September 2026 by the owner"
+    ],
+    "calibration": [
+     "none yet"
+    ],
+    "model pin": [
+     "none yet"
+    ]
+   },
+   "moves": [
+    "reduce_risk",
+    "certainty"
+   ],
+   "moves_labels": [
+    "Make it safe to say yes",
+    "Tell me exactly what happens"
+   ],
+   "bad_moves": [],
+   "personality": "expressive"
+  }
+ ],
+ "runs": [
+  {
+   "date": "2026-09-21",
+   "round": 1,
+   "page": "/lp/emergency-plumber",
+   "page_hash": "example",
+   "model": "claude-fable-5-1",
+   "verdicts": [
+    {
+     "persona": "Burst-pipe Brenda",
+     "share": 55,
+     "primary": true,
+     "verdict": "LEAVE",
+     "reason": "no phone number in the first screen, the only button says Get a quote",
+     "element": "hero",
+     "out_of_control": false,
+     "confirmed_by": "call, 2 September"
+    },
+    {
+     "persona": "Landlord Leo",
+     "share": 30,
+     "primary": false,
+     "verdict": "LEAVE",
+     "reason": "no price anywhere, the FAQ says call for a quote",
+     "element": "pricing",
+     "out_of_control": false,
+     "confirmed_by": "none"
+    },
+    {
+     "persona": "Renovation Rita",
+     "share": 15,
+     "primary": false,
+     "verdict": "STAY",
+     "reason": "",
+     "element": "",
+     "out_of_control": false,
+     "confirmed_by": "none"
+    }
+   ],
+   "fix_applied": "tap-to-call number and the answered-by-a-person line moved into the first screen",
+   "call": [
+    "1 of 3 buyers get in touch.",
+    "TO ANSWER: Burst-pipe Brenda leaves at hero · confirmed by call, 2 September",
+    "TO ANSWER: Landlord Leo leaves at pricing"
+   ]
+  },
+  {
+   "date": "2026-09-23",
+   "round": 2,
+   "page": "/lp/emergency-plumber",
+   "page_hash": "example",
+   "model": "claude-fable-5-1",
+   "verdicts": [
+    {
+     "persona": "Burst-pipe Brenda",
+     "share": 55,
+     "primary": true,
+     "verdict": "STAY",
+     "reason": "",
+     "element": "",
+     "out_of_control": false,
+     "confirmed_by": "none"
+    },
+    {
+     "persona": "Landlord Leo",
+     "share": 30,
+     "primary": false,
+     "verdict": "LEAVE",
+     "reason": "call-out price still missing, only a from-price on the emergency job",
+     "element": "pricing",
+     "out_of_control": false,
+     "confirmed_by": "search term: plumber fixed price call out"
+    },
+    {
+     "persona": "Renovation Rita",
+     "share": 15,
+     "primary": false,
+     "verdict": "LEAVE",
+     "reason": "the headline is the emergency line, nothing says remodels are done here",
+     "element": "headline",
+     "out_of_control": true,
+     "confirmed_by": "none"
+    }
+   ],
+   "call": [
+    "1 of 3 buyers get in touch.",
+    "TO ANSWER: Landlord Leo leaves at pricing · confirmed by search term: plumber fixed price call out",
+    "OUTSIDE THE PAGE: Renovation Rita leaves at headline - price, area or hours."
+   ]
+  }
+ ],
+ "reasons": [
+  {
+   "title": "Someone at the door tonight, not tomorrow",
+   "moves": "Stop the pain I'm in now",
+   "buyers": "1 of 3 - Brenda",
+   "quotes": [
+    {
+     "text": "I just need someone here tonight, I don't care what it costs within reason",
+     "source": "call, 14 August"
+    },
+    {
+     "text": "the other place said tomorrow morning",
+     "source": "call, 2 September"
+    }
+   ]
+  },
+  {
+   "title": "A price they know before anyone turns up",
+   "moves": "Tell me exactly what happens",
+   "buyers": "2 of 3 - Leo, Rita",
+   "quotes": [
+    {
+     "text": "just tell me what a call-out costs, I am not the one standing in the water",
+     "source": "call, 11 June"
+    },
+    {
+     "text": "roughly what does a full bathroom come to",
+     "source": "DM, 30 August"
+    }
+   ]
+  },
+  {
+   "title": "A job done right the first time",
+   "moves": "Make it safe to say yes",
+   "buyers": "2 of 3 - Leo, Rita",
+   "quotes": [
+    {
+     "text": "the last guy charged two visits for one tap",
+     "source": "DM, 27 July"
+    },
+    {
+     "text": "we are not in a hurry, we want it done right",
+     "source": "call, 2 September"
+    }
+   ]
+  }
+ ],
+ "confidence": {
+  "score": 70,
+  "band": "strong",
+  "means": "Still a simulation. Real visitors remain the only authority.",
+  "conversations": 47,
+  "parts": [
+   {
+    "name": "conversations",
+    "got": 70,
+    "max": 70,
+    "why": "47 real conversations behind the buyers"
+   },
+   {
+    "name": "search terms",
+    "got": 0,
+    "max": 30,
+    "why": "not added yet: what people typed into Google before they clicked"
+   }
+  ]
+ }
+}</script>
+</head>
+<body>
+<div class="nav"><div class="rail">
+  <span class="wordmark display"><svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true"><path d="M12 2 L13.4 10.6 L22 12 L13.4 13.4 L12 22 L10.6 13.4 L2 12 L10.6 10.6 Z"/></svg><span id="brand"></span></span>
+  <nav class="jump" id="jump"></nav>
+  <span class="chip" id="modechip"></span>
+</div></div>
+
+<main>
+<header class="hero"><div class="rail">
+  <div class="kicker">Persona panel · simulation</div>
+  <h1 class="display" id="business"></h1>
+  <div class="meta"><span class="stamp" id="stamp"></span></div>
+</div></header>
+
+<!-- 01 the three reasons people buy, then the stats. Every buyer counts the same. -->
+<section id="card"><div class="rail">
+  <div class="card hide" id="confcard" style="margin-bottom:20px"></div>
+  <div class="thin hide" id="thinwarn"></div>
+  <div class="card">
+    <div class="who">
+      <div class="kicker">Why people buy · the three reasons every page writes to</div>
+      <div class="reasons" id="reasons"></div>
+    </div>
+    <div class="stats" id="stats"></div>
+  </div>
+</div></section>
+
+<!-- 02 one card per buyer, primary first -->
+<section class="band" id="buyers"><div class="rail">
+  <div class="sh"><span class="kicker">Section 1</span><h2 class="display">The buyers</h2></div>
+  <div class="btabs" id="btabs"></div>
+  <div id="buyerCards"></div>
+</div></section>
+
+<!-- 02b people who did not buy - a pattern worth answering, never weighted as revenue -->
+<section id="nonbuyers" class="hide"><div class="rail">
+  <div class="sh"><span class="kicker">Section 2</span><h2 class="display">Who did not buy</h2><p class="lead">No revenue on record. Their objections are real; they carry no weight in the call.</p></div>
+  <div id="nonbuyerCards"></div>
+</div></section>
+
+<!-- 03 the panel: every round, latest first -->
+<section class="band" id="panel"><div class="rail">
+  <div class="sh"><span class="kicker" id="panelnum">Section 3</span><h2 class="display">The panel</h2><p class="lead">Where each buyer leaves your page.</p></div>
+  <div id="panelBody"></div>
+</div></section>
+
+</main>
+
+<footer><div class="rail"><span class="wordmark display"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M12 2 L13.4 10.6 L22 12 L13.4 13.4 L12 22 L10.6 13.4 L2 12 L10.6 10.6 Z"/></svg><span id="brand2"></span></span><span id="foot"></span></div></footer>
+
+<script>
+(function(){
+  const D = JSON.parse(document.getElementById('persona-data').textContent);
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s===null||s===undefined?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const COL = ['#c96442','#3b6ea5','#3d7a4a','#8a6a0c','#7a4a8a','#2f7f86','#a14a6b','#5b6b2f','#6e6d66'];  // last = non-buyers
+  const business = D.business || 'Your business';
+  const tick = '<svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 6.5l2.5 2.5L10 3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const cross = '<svg width="9" height="9" viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
+
+  // Buyers are people who paid. A pattern with no revenue behind it is a non-buyer: shown, never weighted.
+  const ALL = (D.personas||[]).slice();
+  const byWeight = (a,b) => ((b.primary?1:0)-(a.primary?1:0)) || ((b.share||0)-(a.share||0));
+  const P = ALL.filter(p => (p.share||0) > 0).sort(byWeight);
+  const NB = ALL.filter(p => !((p.share||0) > 0)).sort(byWeight);
+  let ci = 1;
+  P.forEach(p => { p.color = p.primary ? COL[0] : COL[1 + ((ci++ - 1) % (COL.length - 2))]; });
+  NB.forEach(p => { p.color = p.primary ? COL[0] : COL[COL.length - 1]; });
+  const F = (p,k) => ((p.fields||{})[k]) || [];
+  const has = (p,k) => F(p,k).length > 0;
+  const conv = ALL.reduce((s,p)=>s+(p.conversations||0),0);
+  const allApproved = ALL.length>0 && ALL.every(p=>p.approved);
+  const R = (D.runs||[]).slice().reverse();
+  const prim = ALL.find(p=>p.primary);
+
+  // ---------- header ----------
+  document.title = 'Persona panel · ' + business;
+  $('brand').textContent = business; $('brand2').textContent = business; $('business').textContent = business;
+  $('stamp').textContent = [D.date, P.length + ' buyer' + (P.length===1?'':'s') + (NB.length ? ' · ' + NB.length + ' who did not buy' : ''), conv + ' conversation' + (conv===1?'':'s') + ' behind them'].filter(Boolean).join(' · ');
+  $('modechip').textContent = ALL.length ? (allApproved ? 'Approved' : 'Awaiting approval') : 'No buyers yet';
+  $('modechip').classList.add(allApproved ? 'ok' : 'wait');
+  $('foot').textContent = 'Panel simulation · ' + (D.date||'') + ' · personas catch confusion, weak promises and friction; they cannot predict conversion';
+
+  // ---------- 01 why people buy ----------
+  // context/voc/reasons.md, ranked by how many of the seven buyers name it, each backed by what real people said.
+  const RS = D.reasons || [];
+  $('reasons').innerHTML = RS.length
+    ? RS.map((r,i)=>`<div class="reason"><div class="rn">${i+1}</div><div class="rb"><h3 class="display">${esc(r.title)}</h3>
+        <div class="rmeta">${r.buyers ? `<span class="st ok">${esc(r.buyers)}</span>` : ''}${r.moves ? `<span class="mchip">${esc(r.moves)}</span>` : ''}</div>
+        ${r.quotes && r.quotes[0] ? `<blockquote class="say">&ldquo;${esc(r.quotes[0].text)}&rdquo;${r.quotes[0].source ? `<span class="src">${esc(r.quotes[0].source)}</span>` : ''}</blockquote>` : ''}</div></div>`).join('')
+    : `<div class="note" style="padding:6px 0 10px">Not written yet. /personas step 1c ranks them into context/voc/reasons.md.</div>`;
+
+  // The score decides whether any of the rest is worth reading, so it is drawn first and biggest.
+  const C = D.confidence;
+  if (C) {
+    const cc = C.score < 20 ? 'var(--bad)' : C.score < 45 ? 'var(--warn)' : C.score < 70 ? 'var(--terracotta)' : 'var(--good)';
+    $('confcard').classList.remove('hide');
+    $('confcard').style.setProperty('--cc', cc);
+    $('confcard').innerHTML = `<div class="conf">
+      <div class="confnum"><span class="n">${C.score}</span><span class="of">out of 100</span><span class="band">${esc(C.band)}</span></div>
+      <div class="confbody">
+        <div class="kicker">Confidence · points for the evidence behind these buyers</div>
+        <p class="means">${esc(C.means)}</p>
+        <div class="cparts">${(C.parts||[]).map(pt=>`<div class="cpart${pt.got?'':' zero'}"><span class="cn">${esc(pt.name)}</span><span class="ctrack"><i style="width:${Math.round((pt.got/pt.max)*100)}%"></i></span><span class="cv">${pt.got} of ${pt.max} pts</span><span class="cw" style="grid-column:2 / -1">${esc(pt.why)}</span></div>`).join('')}</div>
+      </div></div>`;
+  }
+
+  // A page built on a handful of conversations must not look like one built on ninety.
+  // The evidence line is the loudest thing above the buyers when the files are thin.
+  const proto = ALL.filter(p=>p.proto);
+  const thin = ALL.length > 0 && (proto.length === ALL.length || conv < 12);
+  if (thin) {
+    const only = conv === 0 ? 'no recorded conversations at all'
+      : conv + ' conversation' + (conv===1?'':'s') + ' behind ' + (ALL.length===1 ? 'the one file' : 'all ' + ALL.length + ' files');
+    $('thinwarn').classList.remove('hide');
+    $('thinwarn').innerHTML = `<div class="kicker">Read this first</div>`
+      + `<h3>These are guesses, not buyers</h3>`
+      + `<p>There ${conv===1?'is':'are'} ${esc(only)}. Twelve or more per service line is where the pattern stops moving, and six is the floor for a file to be worth anything. Below that the model is filling the gaps from what businesses like this usually look like, which is exactly the thing this whole exercise exists to avoid.</p>`
+      + `<p><b>What it is still good for:</b> catching a page that answers nobody's question, a promise with no proof behind it, a form that asks too much. <b>What it cannot do:</b> tell you which buyer matters or what they would really leave over.</p>`
+      + `<p><b>Before you trust a verdict from here:</b> record the next ten sales calls and run this again, and put the page in front of three real people on their phones. The panel's job is to make those three conversations sharper, not to replace them.</p>`;
+  }
+  $('stats').innerHTML = [
+    ['Buyers', String(P.length), false, (() => {
+      const researched = P.filter(p => p.assumed_quotes && !p.evidence_quotes).length;
+      const own = P.length - researched;
+      return (own ? own + ' from your own calls' : '') + (own && researched ? ', ' : '') + (researched ? researched + ' from research' : '')
+        + (NB.length ? ' · ' + NB.length + ' who never paid, below' : '');
+    })()],
+    ['Conversations behind them', String(conv), false, proto.length ? 'proto-persona (fewer than six conversations): ' + proto.map(p=>p.name).join(', ') + '. Treat its verdict as a guess.' : 'recorded calls and message threads read to build these files'],
+  ].map(([k,v,txt,s])=>`<div class="stat"><div class="v${txt?' txt':''}">${esc(v)}</div><div class="k">${k}</div>${s?`<div class="sub">${esc(s)}</div>`:''}</div>`).join('');
+
+  // ---------- 02 the buyers ----------
+  // Blank fields are dropped, never printed as "not in the file" - an empty row reads like a broken card.
+  const list = vals => vals.length===1 ? esc(vals[0]) : `<ul>${vals.map(v=>`<li>${esc(v)}</li>`).join('')}</ul>`;
+  const row = (p,label,key) => has(p,key) ? `<dt>${label}</dt><dd>${list(F(p,key))}</dd>` : '';
+  const UCOL = { 'same-hour':'var(--terracotta)', 'this-week':'var(--warn)', 'researching':'var(--ring)' };
+  function urgency(p){
+    const segs = (p.urgency||[]).filter(s=>s.pct>0);
+    if (!segs.length) return has(p,'urgency') ? `<dt>Urgency</dt><dd>${list(F(p,'urgency'))}</dd>` : '';
+    return `<dt>Urgency</dt><dd><div class="ubar">${segs.map(s=>`<i style="width:${s.pct}%;background:${UCOL[s.kind]||'var(--muted)'}"></i>`).join('')}</div>`
+      + `<div class="ulbl">${segs.map(s=>`<span><span class="sw" style="background:${UCOL[s.kind]||'var(--muted)'}"></span>${esc(s.kind)} ${s.pct}%</span>`).join('')}</div></dd>`;
+  }
+  const KNOWN = new Set(['personality','moves them','share of buyers','share of revenue, 12 months','primary','sources','age and household','device and moment','urgency','trigger','what they buy on','silent question','leave moment','anxiety and habit','verbatim lines','disposition','not this person',"out of the page's control",'calibration','model pin','approved']);
+
+  // Everything that is not a stay/leave reason: one strip, even cells, no stray labels floating
+  // in a column. Urgency keeps its bar because the bar is the only one worth a picture.
+  function meta(p, hero){
+    const cells = [];
+    // the trigger is often the same sentence as the hero quote; printing it twice reads as a bug
+    const norm = t => String(t||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+    const heroNorm = norm(hero && hero.text);
+    if ((p.urgency||[]).filter(u=>u.pct>0).length) {
+      const segs = p.urgency.filter(u=>u.pct>0);
+      cells.push(['When they are looking',
+        `<div class="ubar">${segs.map(x=>`<i style="width:${x.pct}%;background:${UCOL[x.kind]||'var(--muted)'}"></i>`).join('')}</div>`
+        + `<div class="ulbl">${segs.map(x=>`<span><span class="sw" style="background:${UCOL[x.kind]||'var(--muted)'}"></span>${esc(x.kind)} ${x.pct}%</span>`).join('')}</div>`]);
+    } else if (has(p,'urgency')) cells.push(['When they are looking', esc(F(p,'urgency').join(', '))]);
+    if ((p.moves_labels||[]).length) cells.push(['What moves them', esc(p.moves_labels.join(' · '))]);
+    const plain = [['What set them off','trigger'], ['Where they read it','device and moment'],
+                   ['What they fear','anxiety and habit'], ['How they read','disposition'],
+                   ["The page can't fix","out of the page's control"]];
+    plain.forEach(([lbl,key]) => {
+      if (!has(p,key)) return;
+      const val = F(p,key).join(' · ');
+      if (key === 'trigger' && heroNorm && norm(val).includes(heroNorm.slice(0,40))) return;
+      cells.push([lbl, esc(val)]);
+    });
+    if (!cells.length) return '';
+    return `<div class="meta">${cells.map(([l,v])=>`<div class="mcell"><span class="ml">${l}</span><span class="mv">${v}</span></div>`).join('')}</div>`;
+  }
+
+  const firstName = n => String(n||'').split(' ').slice(-1)[0];
+  const clean = t => String(t||'').replace(/\s*·\s*(assumption|assumed|research)[^·]*$/i,'').trim().replace(/^["'“]+|["'”]+$/g,'');
+  function panel(p, i, total){
+    const hero = (p.quotes||[]).find(q => !q.assumed) || (p.quotes||[])[0];
+    const rest = (p.quotes||[]).filter(q => q !== hero);
+    const researched = p.assumed_quotes && !p.evidence_quotes;
+    const pers = (F(p,'personality')[0] || '').split(/\s+-\s+/);
+    const extra = Object.keys(p.fields||{}).filter(k=>!KNOWN.has(k) && k !== 'personality' && F(p,k).length);
+    const fold = [['Where they read it', F(p,'device and moment')], ['What they fear', F(p,'anxiety and habit')],
+                  ['How they read', F(p,'disposition')],
+                  ["The page can't fix", F(p,"out of the page's control")], ['Sources', F(p,'sources')]]
+      .concat(extra.map(k=>[k.charAt(0).toUpperCase()+k.slice(1), F(p,k)])).filter(x=>x[1].length);
+    const leaves = F(p,'leave moment');
+    return `<div class="card bp" id="${p.id}" style="--pc:${p.color}">
+      <div class="top">
+        <div><div class="kicker" style="color:var(--pc)">${i+1} of ${total}</div>
+          <h3 class="display">${esc(p.name)}</h3><div class="lbl">${esc(p.label||'')}</div>
+          ${pers.length > 1 ? `<div class="lbl how"><span class="k">How they decide</span> ${esc(pers.slice(1).join(' - '))}</div>` : ''}
+          <div class="tags">
+            <span class="st ${researched?'assumed':'ok'}">${researched ? 'from research' : 'from your own calls'}</span>
+            <span class="st ${p.approved?'ok':'wait'}">${p.approved ? 'approved' : 'not yet approved'}</span>
+          </div></div>
+      </div>
+      ${hero ? `<blockquote class="say ${hero.assumed?'assumed':''}">&ldquo;${esc(clean(hero.text))}&rdquo;${hero.source?`<span class="src">${esc(hero.source)}</span>`:''}</blockquote>` : ''}
+      <div class="three">
+        <div><span class="ml q">Asks themselves</span><p class="qq">${esc(clean(F(p,'silent question').join(' '))) || '<span class="k">not in the file</span>'}</p></div>
+        <div><span class="ml y">Buys when</span><p>${esc(F(p,'what they buy on').join(' ')) || '<span class="k">not in the file</span>'}</p></div>
+        <div><span class="ml n">Leaves when</span><p>${esc(leaves[0] || '') || '<span class="k">not in the file</span>'}</p></div>
+      </div>
+      ${(p.moves_labels||[]).length ? `<div class="moves"><span class="ml">What moves them</span>${p.moves_labels.map(m=>`<span class="mchip">${esc(m)}</span>`).join('')}</div>` : ''}
+      <details class="fold"><summary>The rest of the file</summary><div class="in"><dl class="facts">
+        ${urgency(p)}
+        ${fold.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${list(v)}</dd>`).join('')}
+        ${leaves.length > 1 ? `<dt>Also leaves when</dt><dd>${list(leaves.slice(1))}</dd>` : ''}
+        ${rest.length ? `<dt>More in their words</dt><dd><ul>${rest.map(q=>`<li>&ldquo;${esc(clean(q.text))}&rdquo; <span class="k">${esc(q.source||'')}</span></li>`).join('')}</ul></dd>` : ''}
+      </dl></div></details>
+    </div>`;
+  }
+
+  // Every buyer in one row of tabs, in file order - they count the same. Someone who never paid sits at the end, greyed.
+  const ALLB = P.concat(NB);
+  let cur = 0;
+  function showBuyer(i){
+    if (!ALLB.length) return;
+    cur = (i + ALLB.length) % ALLB.length;
+    $('btabs').innerHTML = ALLB.map((p,k)=>`<button class="btab${k===cur?' on':''}" data-i="${k}" style="--pc:${p.color}"><span class="dot"></span><b>${esc(firstName(p.name))}</b>${p.share ? '' : '<span class="k">never paid</span>'}</button>`).join('')
+      + `<span class="bnav"><button data-step="-1" aria-label="Previous buyer">&lsaquo;</button><button data-step="1" aria-label="Next buyer">&rsaquo;</button></span>`;
+    $('buyerCards').innerHTML = panel(ALLB[cur], cur, ALLB.length);
+    $('btabs').querySelectorAll('.btab').forEach(b => b.addEventListener('click', () => showBuyer(+b.dataset.i)));
+    $('btabs').querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', () => showBuyer(cur + (+b.dataset.step))));
+  }
+  document.addEventListener('keydown', e => {
+    if (e.target.closest && e.target.closest('input,textarea')) return;
+    if (e.key === 'ArrowRight') showBuyer(cur + 1);
+    if (e.key === 'ArrowLeft') showBuyer(cur - 1);
+  });
+  if (ALLB.length) showBuyer(0);
+  else $('buyerCards').innerHTML = '<div class="card"><div class="note" style="padding:22px 26px">No buyers yet. Run <span class="mono">/personas research</span> - it asks for your recorded calls, message threads and 90 days of search terms, and writes one file per buyer.</div></div>';
+  $('panelnum').textContent = 'Section 2';
+
+  // ---------- 03 the panel ----------
+  // One line per buyer: who, stay or leave, where and why. Only the latest read is drawn (Jono, 2 October 2026:
+  // "this seems super overwhelming... can we cut it by 90 percent").
+  const short = (t,n) => { t = String(t||'').replace(/\s+/g,' ').trim(); return t.length <= n ? t : t.slice(0,n).replace(/\s+\S*$/,'') + '...'; };
+  function runBlock(r){
+    const vs = (r.verdicts||[]);
+    const counted = vs.filter(v => v.share !== 0);
+    const won = counted.filter(v => v.verdict === 'STAY').length;
+    const rows = vs.map(v=>{
+      const leave = v.verdict==='LEAVE';
+      const el = String(v.element||'');
+      const read_all = /^reads? /i.test(el);
+      const where = !leave || !el ? '' : read_all ? 'reads it all, does not get in touch' : 'at ' + el.replace(/^(at|the)\s+/i,'the ').replace(/^the the /,'the ');
+      // "Bea closes the tab here because X, which..." -> "X"
+      const core = String(v.reason||'').replace(/^.{0,40}?\b(closes the tab here|does not act|leaves(?: here)?) because /i,'').split(/, which|; |\. /)[0];
+      const why = leave ? short(core.charAt(0).toUpperCase() + core.slice(1), 105) : 'reads to the end and gets in touch';
+      return `<div class="vrow v3 ${leave?'leave':'stay'}"><span class="vwho"><b>${esc(v.persona)}</b></span><span class="st ${leave?'leave':'ok'}">${leave?'leaves':'stays'}</span><span class="el">${where ? '<b>' + esc(where) + '</b> · ' : ''}${esc(why)}${v.share===0?' <span class="k">never paid, not counted</span>':''}</span></div>`;
+    }).join('');
+    const see = r.markup ? `<a class="seeread" href="../../${esc(r.markup)}">See how far each buyer gets down the page &rarr;</a>` : '';
+    return `<div class="rh"><div><h3 class="display">${esc(r.page||'')}</h3><span class="k">${esc(r.date||'')}</span></div><div class="score"><span class="v">${won} of ${counted.length}</span><span class="u">get in touch</span></div></div>${rows}${see ? `<div class="seebar">${see}</div>` : ''}`;
+  }
+  if (!R.length) {
+    $('panelBody').innerHTML = `<div class="card"><div class="note" style="padding:22px 26px">No read yet. ${allApproved ? 'Run <span class="mono">/personas read &lt;your page URL&gt;</span>.' : 'The buyers read your page once they are approved.'}</div></div>`;
+  } else {
+    $('panelBody').innerHTML = `<div class="card" style="--pc:var(--terracotta)">${runBlock(R[0])}</div>`;
+  }
+
+
+  // ---------- jump nav ----------
+  const secs = [...document.querySelectorAll('section[id]')].filter(s=>!s.classList.contains('hide'))
+    .map(s=>[s.id, (s.querySelector('h2')||{}).textContent || '']).filter(x=>x[1]);
+  $('jump').innerHTML = [['card','Why people buy']].concat(secs).map(([id,t])=>`<a href="#${id}">${esc(t)}</a>`).join('');
+})();
+</script>
+</body>
+</html>

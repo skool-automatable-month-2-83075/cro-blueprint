@@ -1,0 +1,47 @@
+# Renovation Rita · bathroom remodel
+Example persona file · fictional, built the way a real one is · copy the shape, never the content
+
+- Sources:
+  - 4 calls, 1 DM thread, 90 days of search terms
+  - fewer than six conversations, so this is a proto-persona
+- Age and household:
+  - 35 to 55
+  - owns the home, two incomes
+  - has been planning this for a year
+- Device and moment:
+  - phone in the evening, desktop at the weekend
+  - on the sofa with a saved folder of photos
+- Urgency:
+  - same-hour 0%
+  - this-week 10%
+  - researching 90%
+- Trigger: "we finally have the budget for the ensuite"
+- What they buy on: real finished jobs she can see, and a licence number she can check
+- Personality: Expressive - buys on the finished photo and how the room will feel
+- Moves them:
+  - Make it safe to say yes
+  - Tell me exactly what happens
+- Silent question: "have they done one like mine, and will it look like the photo?"
+- Leave moment:
+  - stock photos where the finished jobs should be
+  - an emergency headline that says this is not for her
+  - no rough price range at all
+- Anxiety and habit:
+  - a job that runs three weeks over and a bathroom she cannot use
+  - collects quotes for months and picks the one who showed real work
+- Verbatim lines:
+  - "do you have photos of ones you have actually done" · call, 14 July
+  - "we are not in a hurry, we want it done right" · call, 2 September
+  - "roughly what does a full bathroom come to" · DM, 30 August
+  - "bathroom renovation plumber" · search term
+  - "ensuite plumbing cost" · search term
+- Disposition: patient, reads the whole page, screenshots the portfolio to show her partner
+- Not this person:
+  - not Brenda with a towel on the floor
+  - not a builder subcontracting the plumbing
+- Out of the page's control:
+  - a start date more than two months out
+  - a budget below the minimum remodel price
+- Approved: 20 September 2026 by the owner
+- Calibration: none yet
+- Model pin: none yet

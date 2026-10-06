@@ -1,0 +1,49 @@
+# Burst-pipe Brenda · emergency plumbing
+Example persona file · fictional, built the way a real one is · copy the shape, never the content
+
+- Sources:
+  - 14 calls, 6 DM threads, 90 days of search terms
+  - June to September
+- Age and household:
+  - 45 to 65
+  - owns the home
+  - often alone when it happens
+- Device and moment:
+  - phone
+  - evenings and weekends
+  - standing in the kitchen with a towel on the floor
+- Urgency:
+  - same-hour 70%
+  - this-week 30%
+  - researching 0%
+- Trigger: "there is water coming through the ceiling"
+- What they buy on: can you come right now, and is the number answered by a person
+- Personality: Driver - in a hurry, wants someone at the door tonight
+- Moves them:
+  - Stop the pain I'm in now
+  - Make it safe to say yes
+  - Save me time
+- Silent question: "is anyone actually going to pick up?"
+- Leave moment:
+  - no phone number in the first screen
+  - a form with more than four fields
+  - "we'll get back to you"
+- Anxiety and habit:
+  - being overcharged in a panic
+  - calls three companies and takes the first that answers
+- Verbatim lines:
+  - "I just need someone here tonight, I don't care what it costs within reason" · call, 14 August
+  - "the other place said tomorrow morning" · call, 2 September
+  - "do you actually answer or is it a machine" · DM, 21 July
+  - "emergency plumber open now" · search term
+  - "how much is a call out" · search term
+- Disposition: sceptical, in a hurry, one tab open, will not scroll unless the first screen earns it
+- Not this person:
+  - not a landlord comparing quotes
+  - not a renovation planner reading case studies
+- Out of the page's control:
+  - outside the service area
+  - no availability tonight
+- Approved: 20 September 2026 by the owner
+- Calibration: none yet
+- Model pin: none yet

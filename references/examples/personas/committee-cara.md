@@ -1,0 +1,44 @@
+# Committee Cara · property manager who needs sign-off
+Example non-buyer file · fictional, built the way a real one is · copy the shape, never the content
+
+- Non-buyer: yes - seven calls, nobody paid, so she is shown and never counted
+- Sources:
+  - 7 calls with 6 organisations
+  - March to August
+  - 0 search terms, 0 DM threads on file
+- Device and moment:
+  - desktop, at the office, often with a colleague on the call
+- Urgency:
+  - same-hour 0%
+  - this-week 30%
+  - researching 70%
+- Trigger: "head office asked us to get three quotes on the block"
+- What they buy on: a written scope she can forward, and one invoice for all twelve units
+- Personality: Steady - needs something in writing she can defend to head office
+- Moves them:
+  - Make it safe to say yes
+  - Make me look good
+  - Tell me exactly what happens
+- Silent question: "can I defend picking them if it goes wrong?"
+- Leave moment:
+  - no way to get a price without a site visit
+  - a single-job page when she has twelve units
+  - nothing she can forward to a budget holder
+- Anxiety and habit:
+  - being blamed for the contractor who let the building down
+  - keeps the incumbent unless someone makes it easy to switch
+- Verbatim lines:
+  - "I need something in writing I can send upstairs" · call, 14 May
+  - "we have twelve units, can you do them all in one visit" · call, 3 June
+  - "I can't sign anything without two other quotes" · call, 22 July
+  - "plumber commercial contract" · search term
+- Disposition: careful, forwards the page before anyone books, never decides on the call
+- Not this person:
+  - not Leo, who owns his units and decides alone
+  - not a homeowner with one bathroom
+- Out of the page's control:
+  - a tender process the page cannot enter
+  - twelve units outside the service area
+- Approved: 20 September 2026 by the owner
+- Calibration: none yet
+- Model pin: none yet

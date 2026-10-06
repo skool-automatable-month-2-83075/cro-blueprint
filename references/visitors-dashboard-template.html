@@ -1,0 +1,487 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Visitor read</title>
+<!--
+  The visitor read: the heat map and the recordings, drawn on the page itself.
+  Same shell as the landing page audit (context/pages/<slug>/audit.html) - a fixed two-pane app, boxes on the
+  screenshot on the left, findings on the right, hover links the two.
+  code/build_visitors_dashboard.py copies this file and replaces ONLY the JSON inside <script id="visitors-data">.
+  Never edit markup, CSS or script per run. The JSON shipped here is a worked example (fictional).
+-->
+<style>
+
+* { box-sizing:border-box; margin:0; padding:0; }
+:root { --canvas:#f5f4ed; --ivory:#faf9f5; --sand:#e8e6dc; --ink:#141413; --body:#5e5d59; --muted:#87867f;
+  --hairline:#f0eee6; --hairline-soft:#e8e6dc; --terracotta:#c96442; --coral:#d97757;
+  --keep:#3d7a4a; --keep-bg:rgba(61,122,74,.09); --fix:#b8860b; --fix-line:#d4a017; --fix-bg:rgba(212,160,23,.12);
+  --cut:#b53333; --cut-line:#d13b3b; --cut-bg:rgba(181,51,51,.08); --none:#87867f; }
+html, body { height:100%; }
+body { background:var(--canvas); color:var(--ink); font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif; -webkit-font-smoothing:antialiased; overflow:hidden; }
+.display { font-family:"Tiempos Text",Georgia,serif; font-weight:500; }
+.mono { font-family:"JetBrains Mono",ui-monospace,Menlo,monospace; }
+.top { height:56px; display:flex; align-items:center; gap:16px; padding:0 22px; border-bottom:1px solid var(--hairline-soft); background:var(--ivory); }
+.top .mark { display:inline-flex; align-items:center; gap:8px; font-size:17px; color:var(--ink); } .top .mark svg { color:var(--terracotta); }
+.top .url { font-size:13px; color:var(--body); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.top .date { margin-left:auto; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); }
+.grid { display:grid; grid-template-columns:minmax(0,1fr) 430px; height:calc(100% - 56px); }
+.pane { overflow:auto; background:var(--sand); padding:28px 44px 60px; }
+.stage { position:relative; margin:0 auto; max-width:1180px; width:100%; background:#fff; border-radius:6px; overflow:hidden; box-shadow:rgba(0,0,0,.13) 0 8px 40px; }
+.stage img { display:block; width:100%; }
+.bx { position:absolute; left:.5%; width:99%; display:block; text-decoration:none; border-radius:5px; box-shadow:inset 0 0 0 2.5px var(--c), inset 0 0 0 4.5px rgba(255,255,255,.85); transition:box-shadow .12s, background .12s; }
+.bx.sub { left:auto; width:auto; border-radius:4px; box-shadow:inset 0 0 0 2.5px var(--c), 0 0 0 2px rgba(255,255,255,.85); }
+.bx.keep { --c:var(--keep); } .bx.fix { --c:var(--fix-line); } .bx.cut { --c:var(--cut-line); background:repeating-linear-gradient(135deg, rgba(209,59,59,.10) 0 10px, rgba(209,59,59,0) 10px 20px); } .bx.none { --c:var(--none); }
+.bx .tag { position:absolute; top:6px; left:6px; min-width:24px; height:22px; padding:0 7px; border-radius:5px; background:var(--c); color:#fff; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; font-weight:500; display:grid; place-items:center; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+.bx.sub .tag { top:-11px; left:-11px; min-width:26px; height:20px; font-size:11px; }
+.bx:hover, .bx.live { box-shadow:inset 0 0 0 3.5px var(--c), inset 0 0 0 5.5px rgba(255,255,255,.9), 0 0 0 9999px rgba(20,20,19,.42); z-index:5; }
+.follow { position:absolute; border:2px dashed rgba(61,122,74,.75); border-radius:10px; pointer-events:none; }
+.follow span { position:absolute; left:50%; transform:translateX(-50%); white-space:nowrap; width:fit-content; font-size:12px; font-weight:600; color:#fff; background:rgba(61,122,74,.92); padding:5px 10px; border-radius:6px; }
+.side { overflow-y:auto; overflow-x:hidden; background:var(--ivory); border-left:1px solid var(--hairline-soft); min-width:0; }
+.side * { min-width:0; overflow-wrap:anywhere; }
+.lines li { grid-template-columns:auto minmax(0,1fr); }
+.rw { overflow:hidden; }
+.sum { padding:22px 24px 20px; border-bottom:1px solid var(--hairline-soft); }
+.mode { font-size:13.5px; line-height:1.5; color:var(--ink); background:var(--cut-bg); border-radius:10px; padding:10px 12px; margin-bottom:16px; }
+.big { display:flex; align-items:baseline; gap:10px; } .big .n { font-size:46px; letter-spacing:-1.5px; line-height:1; } .big .k { font-size:14px; color:var(--body); }
+.chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+.chip { font-size:12.5px; font-weight:600; padding:4px 10px; border-radius:99px; }
+.chip.fix { background:var(--fix-bg); color:var(--fix); } .chip.add { background:rgba(20,20,19,.06); color:var(--ink); } .chip.cut { background:var(--cut-bg); color:var(--cut); } .chip.keep { background:var(--keep-bg); color:var(--keep); }
+.first { margin-top:18px; } .first h3, .grp { font-size:11px; letter-spacing:1.6px; text-transform:uppercase; color:var(--terracotta); font-family:"JetBrains Mono",ui-monospace,monospace; font-weight:500; }
+.first ol { margin:10px 0 0 18px; } .first li { font-size:14px; line-height:1.45; padding:4px 0; }
+.grp { padding:20px 24px 8px; }
+.card { padding:15px 24px 17px; border-top:1px solid var(--hairline); cursor:pointer; scroll-margin-top:12px; }
+.card:hover, .card.lit { background:#fff; } .card.lit { box-shadow:inset 3px 0 0 var(--terracotta); }
+.card header { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:start; }
+.num { min-width:26px; height:22px; padding:0 6px; border-radius:5px; color:#fff; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:12px; display:grid; place-items:center; margin-top:1px; }
+.keep .num, .num.keep { background:var(--keep); } .fix .num, .num.fix { background:var(--fix-line); } .cut .num, .num.cut { background:var(--cut-line); } .none .num { background:var(--none); }
+.is { font-size:15px; font-weight:600; line-height:1.3; }
+.vd { font-size:11px; letter-spacing:1.2px; text-transform:uppercase; font-weight:600; padding:3px 8px; border-radius:99px; margin-top:1px; white-space:nowrap; }
+.keep .vd { color:var(--keep); background:var(--keep-bg); } .fix .vd { color:var(--fix); background:var(--fix-bg); } .cut .vd { color:var(--cut); background:var(--cut-bg); }
+.hd { font-size:12.5px; color:var(--muted); margin:4px 0 0 36px; font-style:italic; }
+.why { font-size:13.5px; color:var(--body); line-height:1.5; margin:7px 0 0 36px; }
+.lines { list-style:none; margin:10px 0 0 36px; }
+.lines li { display:grid; grid-template-columns:auto 1fr; gap:9px; font-size:13px; line-height:1.45; padding:5px 0; border-top:1px solid var(--hairline); }
+.lines li:first-child { border-top:0; }
+.st { font-size:10px; letter-spacing:1px; text-transform:uppercase; font-weight:700; padding:2px 6px; border-radius:4px; height:fit-content; margin-top:1px; white-space:nowrap; }
+.st.ok { color:var(--keep); background:var(--keep-bg); } .st.weak { color:var(--fix); background:var(--fix-bg); } .st.missing { color:var(--cut); background:var(--cut-bg); } .st.unchecked { color:var(--body); background:rgba(20,20,19,.06); }
+.st.sub { color:#fff; background:var(--fix-line); } .st.sub.keep { background:var(--keep); }
+.lines b { font-weight:600; color:var(--ink); } .lines span.nt { color:var(--body); }
+.notes { margin:10px 0 0 36px; }
+.note { padding:8px 0 0; } .note q { display:block; font-size:12.5px; color:var(--muted); font-style:italic; quotes:none; }
+.note p { font-size:13px; color:var(--body); line-height:1.45; margin-top:2px; }
+.rw { margin:12px 0 0 36px; border-top:1px solid var(--hairline); padding-top:10px; }
+.rw h4 { font-size:10.5px; letter-spacing:1.4px; text-transform:uppercase; color:var(--muted); font-weight:600; margin-bottom:4px; }
+.rw .pair { display:grid; grid-template-columns:52px 1fr; gap:2px 8px; font-size:13px; line-height:1.45; padding:7px 0; border-top:1px solid var(--hairline); }
+.rw .pair:first-of-type { border-top:0; }
+.rw .lb { font-size:10px; letter-spacing:1px; text-transform:uppercase; font-weight:700; padding-top:2px; }
+.rw .lb.b { color:var(--muted); } .rw .lb.a { color:var(--keep); }
+.rw .bf { color:var(--muted); text-decoration:line-through; text-decoration-color:rgba(135,134,127,.5); } .rw .af { color:var(--ink); }
+.st.na { color:var(--muted); background:rgba(20,20,19,.04); }
+.note .tag { display:inline-block; font-size:10px; letter-spacing:1px; text-transform:uppercase; font-weight:700; padding:1px 6px; border-radius:4px; margin-right:7px; vertical-align:1px; color:var(--fix); background:var(--fix-bg); }
+.note .t-keep { color:var(--keep); background:var(--keep-bg); } .note .t-cut, .note .t-typo { color:var(--cut); background:var(--cut-bg); }
+.note .t-add, .note .t-swap, .note .t-move { color:var(--ink); background:rgba(20,20,19,.07); }
+.glance { padding:4px 24px 8px; }
+.gl { padding:10px 0; border-top:1px solid var(--hairline); } .gl:first-child { border-top:0; }
+.gi { font-size:13px; line-height:1.45; padding:6px 0 0; } .gi b { font-weight:600; }
+.gn { font-size:12.5px; color:var(--body); margin-top:1px; }
+.gl .wh { color:var(--muted); font-size:11.5px; }
+.drop { margin:8px 0 0 36px; font-size:12.5px; line-height:1.45; padding:6px 9px; border-radius:7px; }
+.drop b { font-weight:700; } .drop span { color:var(--body); }
+.drop.lo { background:var(--keep-bg); } .drop.lo b { color:var(--keep); }
+.drop.mid { background:var(--fix-bg); } .drop.mid b { color:var(--fix); }
+.drop.hi { background:var(--cut-bg); } .drop.hi b { color:var(--cut); }
+.copy { margin:8px 0 0 36px; display:flex; flex-wrap:wrap; gap:4px; }
+.copy span { font-size:11.5px; font-weight:600; padding:3px 8px; border-radius:6px; }
+.copy .okc { color:var(--keep); background:var(--keep-bg); } .copy .bad { color:var(--cut); background:var(--cut-bg); }
+.anat { margin:8px 0 0 36px; display:flex; flex-wrap:wrap; gap:4px; }
+.anat span { font-size:11px; padding:2px 7px; border-radius:99px; }
+.anat .has { color:var(--keep); background:var(--keep-bg); } .anat .not { color:var(--cut); background:var(--cut-bg); text-decoration:line-through; text-decoration-color:rgba(181,51,51,.45); }
+.vfacts { font-size:12px; color:var(--body); margin:6px 0 0 36px; font-family:"JetBrains Mono",ui-monospace,monospace; }
+.meas { font-size:12px; color:var(--cut); margin:6px 0 0 36px; font-weight:600; }
+.rw .gr { display:inline-block; margin-left:6px; font-size:10.5px; color:var(--muted); font-family:"JetBrains Mono",ui-monospace,monospace; text-decoration:none; white-space:nowrap; }
+.count { font-size:12.5px; color:var(--body); margin-top:8px; line-height:1.5; }
+.item { padding:12px 24px; border-top:1px solid var(--hairline); display:grid; grid-template-columns:auto 1fr; gap:10px; }
+.item .t { font-size:14px; font-weight:600; } .item .d { font-size:13px; color:var(--body); line-height:1.45; margin-top:2px; }
+.foot { padding:24px; font-size:12px; color:var(--muted); }
+.unfinished { max-width:620px; margin:60px auto; background:var(--ivory); border-radius:16px; padding:32px 36px; box-shadow:rgba(0,0,0,.05) 0 4px 24px; }
+.unfinished h1 { font-size:28px; letter-spacing:-.5px; } .unfinished p { color:var(--body); margin-top:10px; line-height:1.55; } .unfinished li { color:var(--body); margin:4px 0 0 18px; font-size:14px; }
+@media (max-width:980px) { body { overflow:auto; } .grid { display:flex; flex-direction:column; height:auto; } .side { order:-1; border-left:0; overflow:visible; } .pane { padding:16px; overflow:visible; }
+  .top .url, .top .date { display:none; } .card header { grid-template-columns:auto 1fr; } .card .vd { grid-column:2; justify-self:start; } }
+
+/* retention bands: every section marked by how well it holds people */
+.bx.band { left:0; width:100%; box-shadow:inset 0 0 0 2px var(--c); border-radius:0; }
+.bx.band .tag { position:absolute; top:8px; left:8px; background:var(--c); font-size:11px; }
+.bx.band .bandnote { position:absolute; top:8px; right:8px; font-family:"JetBrains Mono",ui-monospace,monospace;
+  font-size:11px; color:#fff; background:var(--c); padding:2px 8px; border-radius:5px; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+.bx.band.keep { --c:var(--keep); background:rgba(61,122,74,.10); }
+.bx.band.fix  { --c:var(--fix-line); background:rgba(212,160,23,.13); }
+.bx.band.field { left:2%; width:96%; border-radius:6px; z-index:4; background:none; }
+.bx.band.field.cut { background:repeating-linear-gradient(135deg, rgba(209,59,59,.14) 0 8px, rgba(209,59,59,0) 8px 16px); }
+.bx.band.field.fix { background:rgba(212,160,23,.14); }
+.bx.band.field.keep { background:rgba(61,122,74,.12); }
+.bx.band.field.none { --c:var(--none); background:rgba(135,134,127,.10); }
+.bx.band.field .tag { font-size:10px; top:4px; left:4px; }
+.bx.band.field .bandnote { top:4px; right:4px; font-size:10px; padding:1px 6px; }
+.bx.band.cut  { --c:var(--cut-line); background:repeating-linear-gradient(135deg, rgba(209,59,59,.16) 0 10px, rgba(209,59,59,0) 10px 20px); }
+/* a rage marker: a ring exactly where the taps landed */
+.mk { position:absolute; transform:translate(-50%,-50%); z-index:6; text-decoration:none; }
+.mk .ring { display:block; width:46px; height:46px; border-radius:50%; border:3px solid var(--cut-line);
+  box-shadow:0 0 0 3px rgba(255,255,255,.9), 0 2px 10px rgba(0,0,0,.25); animation:pulse 2s ease-out infinite; }
+@keyframes pulse { 0%,100% { transform:scale(1); opacity:1 } 50% { transform:scale(1.12); opacity:.75 } }
+.mk .lbl { position:absolute; top:50px; left:50%; transform:translateX(-50%); white-space:nowrap;
+  font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; font-weight:600; color:#fff;
+  background:var(--cut-line); padding:3px 8px; border-radius:5px; box-shadow:0 1px 4px rgba(0,0,0,.3); }
+.mk.live .ring { border-width:4px; }
+/* the heat map layer, over the same stage the audit draws boxes on */
+.stage canvas.heat { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+.stage img.dim { filter:grayscale(.55) contrast(.82) brightness(1.06); }
+.tgls { display:flex; gap:6px; flex-wrap:wrap; margin:0 auto 14px; max-width:1180px; }
+.tgl { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:1.2px;
+  padding:6px 12px; border-radius:99px; border:1px solid var(--hairline-soft); background:var(--ivory); color:var(--body); cursor:pointer; }
+.tgl[aria-pressed="true"] { background:var(--ink); color:var(--ivory); border-color:var(--ink); }
+.rung { display:grid; grid-template-columns:minmax(0,88px) minmax(0,1fr); gap:4px 9px; align-items:center; font-size:12.5px; padding:6px 0; }
+.rung > span:first-child { overflow-wrap:anywhere; }
+.rung .bar { height:16px; border-radius:4px; background:var(--sand); overflow:hidden; }
+.rung .bar i { display:block; height:100%; background:var(--fix-line); }
+.rung.wall .bar i { background:var(--cut-line); }
+.rung .n { grid-column:1 / -1; font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px;
+  color:var(--body); overflow-wrap:anywhere; line-height:1.45; }
+.chg { font-size:13px; line-height:1.5; margin:9px 0 0 36px; padding:9px 11px; border-radius:8px;
+  background:rgba(20,20,19,.05); color:var(--ink); }
+.chg b { font-weight:600; }
+.clip { margin:10px 0 0 36px; }
+.clip video { width:100%; border-radius:8px; background:#111; display:block; }
+.clip .cap { font-size:11.5px; color:var(--muted); margin-top:5px; line-height:1.4; }
+.mo { display:grid; grid-template-columns:44px 1fr; gap:8px; font-size:12.5px; line-height:1.45; padding:3px 0; }
+.mo .t { font-family:"JetBrains Mono",ui-monospace,monospace; font-size:11px; color:var(--muted); }
+</style></head><body>
+<div class="top">
+  <span class="mark display"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span id="biz">Visitor read</span></span>
+  <span class="url" id="url"></span>
+  <span class="date" id="stamp"></span>
+</div>
+<div class="grid">
+  <div class="pane">
+    <div class="tgls" id="tgls"></div>
+    <div class="stage" id="stage"><img id="shot" class="dim" alt="The page"><canvas class="heat" id="heat"></canvas></div>
+  </div>
+  <aside class="side">
+    <div class="sum">
+      <div class="mode" id="mode"></div>
+      <div class="big"><span class="n display" id="bign"></span><span class="k" id="bigk"></span></div>
+      <div class="chips" id="chips"></div>
+      <div class="first" id="first"></div>
+    </div>
+    <div id="cards"></div>
+  </aside>
+</div>
+<script id="visitors-data" type="application/json">{
+ "business": "Dave's Plumbing (worked example)",
+ "page": "/lp/drain-cleaning",
+ "date": "28 September 2026",
+ "days": 30,
+ "note": "980 clicks and 41 sessions read. A heat map needs about 2,000 pageviews before the picture is firm.",
+ "clicks": 980,
+ "sessions": 41,
+ "heatmap": {
+  "views": [
+   {
+    "viewport": "phone",
+    "width": 390,
+    "height": 5200,
+    "image": "",
+    "points": {
+     "click": [
+      {
+       "x": 0.5,
+       "y": 820,
+       "n": 34
+      },
+      {
+       "x": 0.42,
+       "y": 2310,
+       "n": 22
+      }
+     ],
+     "rageclick": [
+      {
+       "x": 0.42,
+       "y": 2310,
+       "n": 9
+      }
+     ],
+     "scrolldepth": [
+      {
+       "y": 1300,
+       "n": 338
+      },
+      {
+       "y": 2600,
+       "n": 190
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "findings": [
+  {
+   "title": "The price box does nothing when tapped",
+   "verdict": "cut",
+   "group": "Broken, ships today",
+   "where": "Price \u00b7 2,100 to 3,100px",
+   "top": 2100,
+   "bottom": 3100,
+   "why": "Nine people tapped the price line on a phone. It is a div, not a link, so nothing opens.",
+   "lines": [
+    {
+     "state": "missing",
+     "text": "9 taps by 9 people, none of them opened anything"
+    }
+   ]
+  },
+  {
+   "title": "The form loses people on the address field",
+   "verdict": "fix",
+   "group": "Friction",
+   "where": "Form \u00b7 4,100 to 5,000px",
+   "top": 4100,
+   "bottom": 5000,
+   "why": "41 people opened the address field and 22 left it empty, then left the page.",
+   "rungs": [
+    {
+     "label": "Started",
+     "pct": 100,
+     "note": "63"
+    },
+    {
+     "label": "name",
+     "pct": 100,
+     "note": "63 touched \u00b7 2 empty"
+    },
+    {
+     "label": "phone",
+     "pct": 92,
+     "note": "58 touched \u00b7 14 empty"
+    },
+    {
+     "label": "address",
+     "pct": 65,
+     "note": "41 touched \u00b7 22 empty",
+     "wall": true
+    },
+    {
+     "label": "Sent it",
+     "pct": 27,
+     "note": "17"
+    }
+   ]
+  },
+  {
+   "title": "44 people left for YouTube",
+   "verdict": "fix",
+   "group": "Friction",
+   "where": "Hero",
+   "top": 0,
+   "bottom": 1200,
+   "why": "The video link opens YouTube in the same tab. Every one of those is a visitor who left the page.",
+   "lines": [
+    {
+     "state": "weak",
+     "text": "youtube.com \u00b7 44 taps by 43 people"
+    }
+   ]
+  }
+ ]
+}</script>
+<script>
+(() => {
+  const D = JSON.parse(document.getElementById('visitors-data').textContent);
+  const $ = i => document.getElementById(i);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const n = v => (v == null ? '-' : Number(v).toLocaleString());
+
+  $('biz').textContent = D.business || 'Visitor read';
+  $('url').textContent = D.page || '';
+  $('stamp').textContent = [D.date, D.days ? `last ${D.days} days` : ''].filter(Boolean).join(' · ');
+
+  // ---- the stage: one view at a time, heat drawn over the screenshot
+  const views = (D.heatmap && D.heatmap.views) || [];
+  // desktop first: it is where most sessions are, and the page is drawn the way most people saw it
+  let vi = Math.max(0, views.findIndex(v => (v.width || 0) >= 700)), layers = {click:true, rageclick:true, scrolldepth:true};
+  const COL = {click:[201,100,66], rageclick:[181,51,51], scrolldepth:[61,122,74]};
+  const view = () => views[vi] || null;
+
+  function draw() {
+    const v = view(), cv = $('heat'), img = $('shot');
+    if (!v || !cv) return;
+    const W = img.clientWidth || v.width, H = img.clientHeight || 1;
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d'); ctx.clearRect(0,0,W,H);
+    const scale = H / (v.height || 1);
+    ['scrolldepth','click','rageclick'].forEach(kind => {
+      if (!layers[kind]) return;
+      const pts = (v.points || {})[kind] || [];
+      if (!pts.length) return;
+      const max = Math.max(1, ...pts.map(p => p.n || 1));
+      ctx.globalCompositeOperation = kind === 'scrolldepth' ? 'source-over' : 'lighter';
+      pts.forEach(p => {
+        const [r,g,b] = COL[kind], y = (p.y || 0) * scale;
+        if (kind === 'scrolldepth') {
+          ctx.fillStyle = `rgba(${r},${g},${b},.16)`; ctx.fillRect(0, y-2, W, 4);
+          ctx.fillStyle = 'rgba(20,20,19,.72)'; ctx.font = '11px ui-monospace,Menlo,monospace';
+          ctx.fillText(`${p.n} still here`, 8, Math.max(12, y-6));
+          return;
+        }
+        // radius scales with how wide the page is drawn, so a desktop shot does not turn into one orange smear
+        const unit = Math.max(7, W / 42);
+        const x = (p.x == null ? .5 : p.x) * W, rad = unit * (0.7 + 1.1 * Math.sqrt((p.n||1)/max));
+        const g2 = ctx.createRadialGradient(x,y,1,x,y,rad);
+        g2.addColorStop(0, `rgba(${r},${g},${b},.72)`);
+        g2.addColorStop(.45, `rgba(${r},${g},${b},.26)`);
+        g2.addColorStop(1, `rgba(${r},${g},${b},0)`);
+        ctx.fillStyle = g2; ctx.beginPath(); ctx.arc(x,y,rad,0,6.2832); ctx.fill();
+        ctx.fillStyle = `rgba(${r},${g},${b},.9)`; ctx.beginPath(); ctx.arc(x,y,Math.max(3,rad*.16),0,6.2832); ctx.fill();
+      });
+      ctx.globalCompositeOperation = 'source-over';
+    });
+    boxes();
+  }
+
+  // ---- a box per finding that has a place on the page
+  function boxes() {
+    const v = view(); if (!v) return;
+    const vp = (v.width || 0) < 700 ? 'mobile' : 'desktop';
+    [...document.querySelectorAll('.bx, .mk')].forEach(b => b.remove());
+    (D.findings || []).forEach((f, i) => {
+      // a marker sits at the exact spot on one viewport; it is not drawn on the other one
+      (f.markers || []).filter(mk => !mk.vp || mk.vp === vp).forEach(mk => {
+        const d = document.createElement('a');
+        d.className = 'mk'; d.href = '#card-f' + i; d.dataset.box = 'f' + i;
+        d.style.top = `${100 * (mk.y || 0) / (v.height || 1)}%`;
+        d.style.left = `${100 * (mk.x == null ? .5 : mk.x)}%`;
+        d.title = mk.label || '';
+        d.innerHTML = `<span class="ring"></span><span class="lbl">${esc(mk.label || '')}</span>`;
+        $('stage').appendChild(d);
+      });
+      // a band per section, coloured by how well it holds people - the whole page marked up
+      (f.fields || []).filter(fb => !fb.vp || fb.vp === vp).forEach((fb, j) => {
+        const d = document.createElement('a');
+        d.className = 'bx band field ' + (fb.verdict || 'fix');
+        d.id = 'box-f' + i + '-q' + j; d.href = '#card-f' + i; d.dataset.box = 'f' + i;
+        d.style.top = `calc(${100 * fb.top / (v.height || 1)}% - 2px)`;
+        d.style.height = `calc(${100 * Math.max(24, fb.bottom - fb.top) / (v.height || 1)}% + 4px)`;
+        const pw = fb.page_width || v.width || 1;
+        if (fb.left != null && fb.width) {          // hug the field itself, never the whole page width
+          d.style.left = `calc(${100 * fb.left / pw}% - 3px)`;
+          d.style.width = `calc(${100 * fb.width / pw}% + 6px)`;
+        }
+        d.innerHTML = `<span class="tag">${esc(fb.name)}</span><span class="bandnote">${esc(fb.note || '')}</span>`;
+        $('stage').appendChild(d);
+      });
+      (f.bands || []).filter(bd => !bd.vp || bd.vp === vp).forEach((bd, j) => {
+        const d = document.createElement('a');
+        d.className = 'bx band ' + (bd.verdict || 'fix');
+        d.id = 'box-f' + i + '-b' + j; d.href = '#card-f' + i; d.dataset.box = 'f' + i;
+        d.style.top = `calc(${100 * bd.top / (v.height || 1)}% + 2px)`;
+        d.style.height = `calc(${100 * (bd.bottom - bd.top) / (v.height || 1)}% - 4px)`;
+        d.innerHTML = `<span class="tag">${esc(bd.name)}</span>` +
+          `<span class="bandnote">${esc(String(bd.reached))} still here · ${esc(String(bd.left))} left (${esc(String(bd.left_pct))}%)</span>`;
+        $('stage').appendChild(d);
+      });
+      if (f.top == null || f.bottom == null) return;
+      const a = document.createElement('a');
+      a.className = 'bx ' + (f.verdict || 'fix');
+      a.id = 'box-f' + i; a.href = '#card-f' + i;
+      a.style.top = `calc(${100 * f.top / (v.height||1)}% + 3px)`;
+      a.style.height = `calc(${100 * (f.bottom - f.top) / (v.height||1)}% - 6px)`;
+      a.innerHTML = `<span class="tag">${i+1}</span>`;
+      a.dataset.box = 'f' + i;
+      $('stage').appendChild(a);
+      if (f.markers && f.markers.length) a.style.display = 'none';   // a marker is more precise than a band
+    });
+    wire();
+  }
+
+  // ---- toggles
+  const tg = [];
+  views.forEach((v,i) => tg.push({id:'v'+i, label:v.viewport, on:()=>i===vi, act:()=>{ vi=i; $('shot').src=v.image||''; }}));
+  ['click','rageclick','scrolldepth'].forEach(k => tg.push({id:k,
+    label: k==='scrolldepth' ? 'how far they got' : (k==='rageclick' ? 'rage clicks' : 'clicks'),
+    on:()=>layers[k], act:()=>{ layers[k]=!layers[k]; }}));
+  $('tgls').innerHTML = tg.map(b => `<button class="tgl" data-id="${b.id}" aria-pressed="${b.on()}">${esc(b.label)}</button>`).join('');
+  $('tgls').addEventListener('click', e => {
+    const t = e.target.closest('.tgl'); if (!t) return;
+    const b = tg.find(x => x.id === t.dataset.id); if (!b) return;
+    b.act(); fit();
+    [...$('tgls').querySelectorAll('.tgl')].forEach(x => x.setAttribute('aria-pressed', tg.find(y=>y.id===x.dataset.id).on()));
+    setTimeout(draw, 40);
+  });
+  function fit() { const v = view(); if (v) $('stage').style.maxWidth = ((v.width || 0) < 700 ? 430 : 1180) + 'px'; }
+  if (view()) { $('shot').src = view().image || ''; fit(); }
+  $('shot').addEventListener('load', draw);
+  window.addEventListener('resize', draw);
+  setTimeout(draw, 80);
+
+  // ---- summary
+  const F = D.findings || [];
+  const cut = F.filter(f=>f.verdict==='cut').length, fix = F.filter(f=>f.verdict==='fix').length;
+  $('mode').textContent = D.note || '';
+  $('bign').textContent = String(F.length);
+  $('bigk').textContent = F.length === 1 ? 'thing to look at' : 'things to look at';
+  $('chips').innerHTML = [cut?`<span class="chip cut">${cut} broken</span>`:'', fix?`<span class="chip fix">${fix} friction</span>`:'',
+    D.clicks?`<span class="chip add">${n(D.clicks)} clicks read</span>`:'', D.sessions?`<span class="chip add">${n(D.sessions)} sessions</span>`:''].join('');
+  const top = F.slice(0,3);
+  $('first').innerHTML = top.length ? `<h3>Do this first</h3><ol>${top.map(f=>`<li>${esc(f.title)}</li>`).join('')}</ol>` : '';
+
+  // ---- the cards
+  const grp = {};
+  F.forEach((f,i) => { (grp[f.group||'What the visitors did'] = grp[f.group||'What the visitors did'] || []).push([f,i]); });
+  $('cards').innerHTML = Object.entries(grp).map(([g,rows]) => `<div class="grp">${esc(g)}</div>` + rows.map(([f,i]) => `
+    <div class="card ${f.verdict||'fix'}" id="card-f${i}" data-box="f${i}">
+      <header>
+        <span class="num">${i+1}</span>
+        <span class="is">${esc(f.title)}</span>
+        <span class="vd">${esc(f.verdict==='cut'?'broken':f.verdict==='keep'?'working':'friction')}</span>
+      </header>
+      ${f.where ? `<div class="hd">${esc(f.where)}</div>` : ''}
+      ${f.why ? `<div class="why">${esc(f.why)}</div>` : ''}
+      ${f.change ? `<div class="chg"><b>Change:</b> ${esc(f.change)}</div>` : ''}
+      ${f.rungs ? `<div class="rw"><h4>The form, rung by rung</h4>${f.rungs.map(r=>`
+        <div class="rung ${r.wall?'wall':''}"><span>${esc(r.label)}</span>
+          <span class="bar"><i style="width:${Math.round(r.pct||0)}%"></i></span>
+          <span class="n">${esc(r.note||'')}</span></div>`).join('')}</div>` : ''}
+      ${f.lines ? `<ul class="lines">${f.lines.map(l=>`<li><span class="st ${esc(l.state||'weak')}">${esc(l.state||'')}</span><span>${esc(l.text)}</span></li>`).join('')}</ul>` : ''}
+      ${f.moments ? `<div class="clip">${f.moments.map(m=>`<div class="mo"><span class="t">${esc(m.t)}</span><span><b>${esc(m.section)}</b> · ${esc(m.saw)}</span></div>`).join('')}</div>` : ''}
+      ${f.video ? `<div class="clip"><video src="${esc(f.video)}" controls preload="metadata"></video><div class="cap">${esc(f.caption||'')}</div></div>` : ''}
+    </div>`).join('')).join('');
+
+  function wire() {
+    const pane = document.querySelector('.pane');
+    function clear() {
+      document.querySelectorAll('.bx.live, .mk.live').forEach(b => b.classList.remove('live'));
+      document.querySelectorAll('.card.lit').forEach(c => c.classList.remove('lit'));
+    }
+    function show(id, scrollPane) {
+      clear();
+      const box = document.getElementById('box-' + id), card = document.getElementById('card-' + id);
+      document.querySelectorAll(`.mk[data-box="${id}"]`).forEach(mk => mk.classList.add('live'));
+      if (box) {
+        box.classList.add('live');
+        if (scrollPane && pane) {
+          const r = box.getBoundingClientRect(), p = pane.getBoundingClientRect();
+          const inView = r.top >= p.top && r.top + Math.min(r.height, p.height) <= p.bottom;
+          if (!inView) {
+            const want = pane.scrollTop + (r.top - p.top) - (r.height > p.height * 0.9 ? 24 : (p.height - r.height) / 2);
+            pane.scrollTo({ top: Math.max(0, want), behavior: 'smooth' });
+          }
+        }
+      }
+      if (card) { card.classList.add('lit'); card.scrollIntoView({block:'nearest', behavior:'smooth'}); }
+    }
+    document.querySelectorAll('[data-box]').forEach(el => {
+      el.addEventListener('mouseenter', () => show(el.dataset.box, true));
+      el.addEventListener('mouseleave', clear);
+      el.addEventListener('click', ev => { ev.stopPropagation(); show(el.dataset.box, true); });
+    });
+  }
+  wire();
+})();
+</script></body></html>
